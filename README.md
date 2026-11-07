@@ -119,22 +119,24 @@ tc04-monitoramento-drift/
 ├── docs/                       # ✅ Documentação do projeto
 ├── models/                     # Não versionado — artefato do modelo baseline
 ├── notebooks/                  # ✅ 01_eda · ⬜ baseline e análise de drift
-├── reports/                    # ⬜ VERSIONADO — evidências HTML do monitoramento
+├── reports/                    # ✅ VERSIONADO — evidências (só agregados; nada do sintético)
+│   ├── model/                  # ✅ comparação dos candidatos (model_comparison.json)
 │   ├── validation/             #   resultado dos contratos por lote
 │   ├── drift/                  #   relatórios Evidently por lote
 │   └── monitoring/             #   dashboard consolidado
 ├── scripts/
 │   ├── download_data.py        # ✅ Dataset real (SHA256) ou sintético
 │   ├── prepare_data.py         # ✅ Limpeza e split referência × produção
+│   ├── train_model.py          # ✅ Treina, compara e promove o modelo (ADR 04)
 │   └── verify_setup.py         # ✅ Diz se o ambiente está pronto e o que falta
 ├── src/
 │   ├── config.py               # ✅ Caminhos, seed e configuração
 │   ├── data/                   # ✅ Esquema, download, sintético, carga, limpeza e split
 │   ├── contracts/              # ⬜ Schemas Pandera e validação (Etapa 1)
-│   ├── models/                 # ⬜ Treino e predição do baseline (Etapa 1)
+│   ├── models/                 # ✅ Candidatos, métricas (AUC, KS) e critério de promoção
 │   ├── drift/                  # ⬜ Simulação e detecção (Etapa 2)
 │   ├── monitoring/             # ✅ Logging (structlog) · ⬜ métricas e alertas (Etapa 3)
-│   └── pipeline/               # ✅ Preparo dos dados · ⬜ demais estágios
+│   └── pipeline/               # ✅ Preparo e treino · ⬜ demais estágios
 ├── tests/                      # ✅ pytest, sem dependência de rede
 └── .github/workflows/          # ✅ CI: lint → testes · dataset real · commitlint
 ```
@@ -224,7 +226,27 @@ saídas**: dá para lê-lo direto no GitHub, sem executar nada. Para reexecutar:
 uv run jupyter lab notebooks/
 ```
 
-### 4. Testes e qualidade de código
+### 4. Modelo base
+
+```bash
+uv run python scripts/train_model.py
+```
+
+Treina três candidatos no mesmo split, com parâmetros padrão, e promove pelo critério
+declarado antes do treino. A comparação é **enxuta de propósito**: o modelo é o objeto
+monitorado, não o entregável (ADR 04 em [docs/ARQUITETURA.md](docs/ARQUITETURA.md)).
+
+| Modelo | AUC validação | AUC teste | KS teste | |
+|--------|---------------|-----------|----------|---|
+| **XGBoost** | **0,7602** | **0,7479** | 0,3726 | ✅ promovido |
+| LogisticRegression | 0,7057 | 0,7206 | 0,3862 | elegível |
+| Dummy | 0,4902 | 0,4910 | 0,0000 | piso |
+
+O modelo vai para `models/baseline/` (não versionado); a comparação completa fica em
+[`reports/model/model_comparison.json`](reports/model/model_comparison.json) (versionado).
+Leitura dos resultados e limitações no [Model Card](docs/MODEL_CARD.md).
+
+### 5. Testes e qualidade de código
 
 ```bash
 uv run pytest

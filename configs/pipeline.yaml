@@ -34,6 +34,17 @@ split:
   test_fraction: 0.15        # da referencia
   max_default_rate_gap_pp: 1.0
 
+model:
+  # ADR 04: comparacao enxuta, parametros padrao, criterio declarado antes do treino.
+  # Fora das features: chave, target e atributos so de auditoria (ADR 08).
+  excluded_columns: [ID, default, SEX, MARRIAGE]
+  categorical_columns: [EDUCATION]
+  candidates: [dummy, logistic_regression, xgboost]
+  interpretable: logistic_regression
+  promotion:
+    min_auc: 0.70          # na validacao; o teste so reporta
+    tie_tolerance: 0.01    # empate tecnico -> o mais interpretavel
+
 synthetic:
   # Fallback para quem nao conseguir baixar o dataset real e para o CI.
   # Valida o pipeline; NAO reproduz as metricas documentadas.

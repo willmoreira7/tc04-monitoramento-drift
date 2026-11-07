@@ -125,11 +125,11 @@ os problemas dos Tech Challenges anteriores.
 - [x] Limpeza da referência: `EDUCATION` 0/5/6 → 4, `MARRIAGE` 0 → 3, 35 perfis duplicados removidos — ver [01_eda.ipynb](../notebooks/01_eda.ipynb)
 - [ ] Escrever o contrato Pandera com as regras de [DATA_CONTRACTS.md](DATA_CONTRACTS.md)
 - [ ] Validar a referência contra o contrato **antes** do treino
-- [ ] Treinar Dummy, LogisticRegression e XGBoost no mesmo split; promover pelo critério declarado
+- [x] Treinar Dummy, LogisticRegression e XGBoost no mesmo split; promover pelo critério declarado (XGBoost — ver [MODEL_CARD.md](MODEL_CARD.md))
 - [ ] Auditoria de viés e ablação de `AGE` / `EDUCATION` → decisão registrada em ADR
 - [ ] Gerar lote corrompido e demonstrar o **bloqueio** (quarentena + exit code ≠ 0 + log)
 - [ ] Relatório de validação em `reports/validation/`
-- [ ] Preencher a primeira versão do [MODEL_CARD.md](MODEL_CARD.md)
+- [x] Preencher a primeira versão do [MODEL_CARD.md](MODEL_CARD.md) (performance e comparação; viés pendente)
 
 ### 📦 Entregável
 
@@ -140,7 +140,7 @@ Script de validação de dados operante + modelo baseline treinado.
 - [ ] Lote corrompido é rejeitado e **nenhuma predição** é gerada para ele
 - [ ] Cada regra crítica tem teste com caso válido e inválido
 - [ ] Teste automatizado prova que nenhuma linha do pool de produção está no treino
-- [ ] Modelo promovido supera o Dummy e atende ao gate declarado
+- [x] Modelo promovido supera o Dummy e atende ao gate declarado (AUC val. 0,7602 ≥ 0,70)
 - [ ] Seção "Como Executar" do README atualizada e executada num clone limpo
 
 ---

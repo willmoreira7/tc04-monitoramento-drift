@@ -1,0 +1,93 @@
+{
+  "promoted": "xgboost",
+  "criterion": {
+    "min_auc": 0.7,
+    "tie_tolerance": 0.01
+  },
+  "features": [
+    "LIMIT_BAL",
+    "EDUCATION",
+    "AGE",
+    "PAY_0",
+    "PAY_2",
+    "PAY_3",
+    "PAY_4",
+    "PAY_5",
+    "PAY_6",
+    "BILL_AMT1",
+    "BILL_AMT2",
+    "BILL_AMT3",
+    "BILL_AMT4",
+    "BILL_AMT5",
+    "BILL_AMT6",
+    "PAY_AMT1",
+    "PAY_AMT2",
+    "PAY_AMT3",
+    "PAY_AMT4",
+    "PAY_AMT5",
+    "PAY_AMT6"
+  ],
+  "source": "real",
+  "source_sha256": "45bcf4df62ff2e237a74eb155cabfb4bbbc171219a0637daef44fdad07503dd0",
+  "seed": 42,
+  "library_versions": {
+    "scikit-learn": "1.9.1",
+    "xgboost": "3.4.1"
+  },
+  "candidates": [
+    {
+      "name": "dummy",
+      "threshold": 1.0,
+      "validation": {
+        "auc": 0.4902,
+        "ks": 0.0,
+        "recall_default": 0.2113,
+        "precision_default": 0.2063,
+        "approval_rate": 0.7735
+      },
+      "test": {
+        "auc": 0.491,
+        "ks": 0.0,
+        "recall_default": 0.2129,
+        "precision_default": 0.2078,
+        "approval_rate": 0.7731
+      }
+    },
+    {
+      "name": "logistic_regression",
+      "threshold": 0.262378,
+      "validation": {
+        "auc": 0.7057,
+        "ks": 0.3901,
+        "recall_default": 0.5392,
+        "precision_default": 0.5066,
+        "approval_rate": 0.7646
+      },
+      "test": {
+        "auc": 0.7206,
+        "ks": 0.3862,
+        "recall_default": 0.5442,
+        "precision_default": 0.4892,
+        "approval_rate": 0.7536
+      }
+    },
+    {
+      "name": "xgboost",
+      "threshold": 0.253256,
+      "validation": {
+        "auc": 0.7602,
+        "ks": 0.4207,
+        "recall_default": 0.5915,
+        "precision_default": 0.4958,
+        "approval_rate": 0.7361
+      },
+      "test": {
+        "auc": 0.7479,
+        "ks": 0.3726,
+        "recall_default": 0.5522,
+        "precision_default": 0.4464,
+        "approval_rate": 0.726
+      }
+    }
+  ]
+}

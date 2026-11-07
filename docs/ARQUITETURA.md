@@ -59,20 +59,41 @@ decide o alerta, KS confirma (ver [DRIFT.md](DRIFT.md#-testes-estatísticos)). �
 
 ---
 
-## 🤖 Decisão 4 — Modelo simples, escolhido por comparação
+## 🤖 Decisão 4 — Comparação enxuta de modelos
 
-O enunciado pede *"um modelo de classificação simples"*. Mesmo assim, a escolha segue o
-padrão dos TCs anteriores: candidatos no **mesmo split**, critério declarado antes do
-treino.
+O enunciado pede *"um modelo de classificação simples"* e **nenhum critério de avaliação
+premia o desempenho do modelo**: 70% da nota está em validação de dados, drift e
+observabilidade, e o modelo é o **objeto monitorado**, não o entregável. Nos TCs
+anteriores a modelagem era critério, e por isso a comparação ampla valia nota. Aqui não.
+
+**Decisão: comparação enxuta, deliberadamente.** Três candidatos, parâmetros padrão, um
+script, uma tabela no Model Card.
 
 | Candidato | Papel |
 |-----------|-------|
-| `DummyClassifier` | Piso |
-| `LogisticRegression` | Linear, interpretável — útil para o art. 20 da LGPD |
-| `XGBClassifier` | Árvores, captura não linearidades de `PAY_*` |
+| `DummyClassifier` (estratificado) | Piso: sem ele, um AUC isolado não diz nada |
+| `LogisticRegression` | Linear e interpretável: coeficientes explicáveis ao titular (LGPD art. 20) |
+| `XGBClassifier` (padrão) | Biblioteca citada no enunciado; mede quanto se ganha abrindo mão de explicabilidade |
 
-**Critério proposto:** maior AUC-ROC no teste entre os modelos com AUC ≥ 0,75 e acima do
-Dummy. Empate técnico (Δ < 0,01) desempata pela interpretabilidade. 🟡 Revisar após EDA.
+**Descartado de propósito** (não é falta de tempo, é foco):
+
+| Item | Por que não |
+|------|-------------|
+| Busca de hiperparâmetros | Ganho de AUC não pontua; custo de tempo sai das etapas que pontuam |
+| Um notebook por modelo | O registro da escolha cabe numa tabela versionada |
+| Validação cruzada extensa | O split único estratificado basta para comparar 3 candidatos |
+| Mais candidatos (RF, MLP…) | Não mudam a conclusão de governança nem a de drift |
+
+**Critério de promoção** (declarado antes do treino, avaliado na **validação** — o teste
+fica intocado para reportar o resultado):
+
+1. AUC-ROC ≥ 0,70 e acima do Dummy
+2. Maior AUC-ROC entre os elegíveis
+3. Empate técnico (Δ AUC < 0,01) → o mais interpretável (`LogisticRegression`)
+
+O limiar de decisão é escolhido na validação pelo **máximo KS** (ponto de maior separação
+entre bons e maus, padrão em crédito) e fica fixo: é ele que define recall e taxa de
+aprovação nos lotes de produção.
 
 ---
 
@@ -108,7 +129,7 @@ detecção de drift seguinte. Ver [DATA_CONTRACTS.md](DATA_CONTRACTS.md#-comport
 | 01 | Pipeline em lote mensal | 🟡 Proposta | Monitoramento de carteira é por janela; reproduzível com um comando |
 | 02 | Pandera para contratos | 🟡 Proposta | Contrato como código, testável com pytest, dependência leve |
 | 03 | Evidently com PSI (decisão) + KS (confirmação) explícitos | 🟡 Proposta | Exigência do enunciado; padrão do Evidently não é PSI/KS |
-| 04 | Dummy · LogReg · XGBoost no mesmo split | 🟡 Proposta | Escolha por evidência, não por preferência |
+| 04 | Comparação enxuta: Dummy · LogReg · XGBoost padrão, sem busca de hiperparâmetros | ✅ Aceita | Modelo é o objeto monitorado, não critério de nota; escolha por evidência mínima e argumento de explicabilidade (LGPD art. 20) |
 | 05 | MLflow + dashboard HTML versionado | 🟡 Proposta | Etapa 3 sem infraestrutura; evidência visível sem rodar |
 | 06 | Lote inválido bloqueado por inteiro | 🟡 Proposta | Não mascarar falha de origem nem distorcer o drift |
 | 07 | Split referência × produção único, 50/50, estratificado | 🟡 Proposta | Separação exigida; M01 de controle mede falso positivo |

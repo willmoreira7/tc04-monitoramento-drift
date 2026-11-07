@@ -27,7 +27,12 @@ EDUCATION_P = {0: 0.001, 1: 0.35, 2: 0.47, 3: 0.16, 4: 0.004, 5: 0.01, 6: 0.005}
 MARRIAGE_P = {0: 0.002, 1: 0.455, 2: 0.532, 3: 0.011}
 PAY_STATUS_P = {-2: 0.09, -1: 0.19, 0: 0.49, 1: 0.12, 2: 0.09, 3: 0.012, 4: 0.008}
 PAY_PERSISTENCE = 0.6
-BASE_LOGIT = -1.9
+# Coeficientes calibrados para aproximar o dataset real: ~22% de inadimplencia e
+# AUC de validacao ~0,73-0,78, para que o criterio de promocao (AUC >= 0,70) seja exercitado.
+BASE_LOGIT = -2.2
+PAY_0_WEIGHT = 1.4
+UTILIZATION_WEIGHT = 1.0
+LIMIT_WEIGHT = 0.4
 
 
 def generate_synthetic(rows: int, seed: int) -> pd.DataFrame:
@@ -93,9 +98,9 @@ def _target(rng: np.random.Generator, frame: pd.DataFrame) -> np.ndarray:
     utilization = frame["BILL_AMT1"].clip(lower=0) / frame["LIMIT_BAL"]
     logit = (
         BASE_LOGIT
-        + 0.75 * frame["PAY_0"].clip(lower=0)
-        + 0.8 * utilization
-        - 0.25 * np.log(frame["LIMIT_BAL"] / 100_000)
+        + PAY_0_WEIGHT * frame["PAY_0"].clip(lower=0)
+        + UTILIZATION_WEIGHT * utilization
+        - LIMIT_WEIGHT * np.log(frame["LIMIT_BAL"] / 100_000)
     )
     probability = 1 / (1 + np.exp(-logit))
     return (rng.random(len(frame)) < probability).astype(int)

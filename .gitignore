@@ -34,6 +34,8 @@ mlartifacts/
 !/logs/.gitkeep
 
 # reports/ E VERSIONADO de proposito: evidencia exigida pelo enunciado
+# ...exceto saidas geradas sobre o dataset sintetico (nao sao evidencia)
+/reports/**/*.synthetic.*
 
 # Node (apenas ferramental de commitlint)
 node_modules/

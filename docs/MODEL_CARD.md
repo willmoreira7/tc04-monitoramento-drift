@@ -4,7 +4,11 @@
 > Git — um Model Card gerado ali existiria em disco sem nunca chegar ao repositório (foi o
 > que custou nota no TC02). Critério de aceite: `git ls-files docs/MODEL_CARD.md`.
 
-> 🟡 **Estado:** template. Preenchido na Etapa 1 com números medidos e revisado na Etapa 4.
+> 🟡 **Estado:** performance e comparação preenchidas na Etapa 1 com números medidos.
+> Pendentes: auditoria de viés, ablação de `AGE`/`EDUCATION` e comportamento sob drift.
+>
+> Fonte de todos os números: [`reports/model/model_comparison.json`](../reports/model/model_comparison.json),
+> gerado por `uv run python scripts/train_model.py`.
 
 ---
 
@@ -12,13 +16,14 @@
 
 | Campo | Valor |
 |-------|-------|
-| Nome do modelo | 🟡 |
+| Nome do modelo | `baseline-xgboost` |
 | Tipo | Classificação binária — probabilidade de inadimplência no mês seguinte |
-| Algoritmo | 🟡 Vencedor entre Dummy · LogisticRegression · XGBoost |
-| Hiperparâmetros | 🟡 |
-| Features | 🟡 Lista final após ablação de `AGE`/`EDUCATION` |
+| Algoritmo | `StandardScaler` + `OneHotEncoder(EDUCATION)` → `XGBClassifier` |
+| Hiperparâmetros | Padrão da biblioteca (xgboost 3.4.1), `random_state=42` — sem busca, por decisão (ADR 04) |
+| Limiar de decisão | **0,2533** (máximo KS na validação); score ≥ limiar → classificado como risco |
+| Features | 21: `LIMIT_BAL`, `EDUCATION`, `AGE`, `PAY_0`, `PAY_2`…`PAY_6`, `BILL_AMT1`…`6`, `PAY_AMT1`…`6` — 🟡 `AGE`/`EDUCATION` sujeitos à ablação |
 | Features excluídas | `ID`, `SEX`, `MARRIAGE` — ver [Governança no README](../README.md#%EF%B8%8F-governança-e-lgpd) |
-| Artefato | `models/` (não versionado) |
+| Artefato | `models/baseline/model.joblib` + `metadata.json` (não versionados) |
 | Seed | 42 |
 | Dataset | UCI Default of Credit Card Clients — ver [DATASET.md](DATASET.md) |
 | Dados de treino | Apenas o conjunto de **referência** |
@@ -46,21 +51,42 @@ a decisão de concessão, e servir de objeto de estudo para a camada de monitora
 
 ---
 
-## 📊 Performance (teste da referência)
+## 📊 Performance (teste da referência, n = 2.248)
 
 | Métrica | Valor | Observação |
 |---------|-------|------------|
-| AUC-ROC | 🟡 | Métrica de promoção |
-| KS (bons × maus) | 🟡 | Padrão de mercado em crédito |
-| Recall — inadimplente | 🟡 | |
-| Precision — inadimplente | 🟡 | |
-| Acurácia | 🟡 | ⚠️ Referência apenas — ~78% é o piso do Dummy |
+| AUC-ROC | **0,7479** | Métrica de promoção (avaliada na validação; o teste só reporta) |
+| KS (bons × maus) | 0,3726 | Padrão de mercado em crédito |
+| Recall — inadimplente | 0,5522 | No limiar 0,2533 |
+| Precision — inadimplente | 0,4464 | |
+| Taxa de aprovação | 72,6% | Fração classificada abaixo do limiar |
+| Acurácia | — | ⚠️ Não usada: ~78% é o piso de quem prevê "ninguém fica inadimplente" |
 
-### Comparação entre candidatos
+Estes são os valores de **referência** para os alertas de degradação da Etapa 2 (queda de
+AUC e de recall em relação ao teste).
 
-| Modelo | AUC-ROC | KS | Recall | |
-|--------|---------|----|--------|---|
-| 🟡 | | | | |
+### Comparação entre candidatos (ADR 04 — comparação enxuta)
+
+Critério declarado antes do treino: AUC ≥ 0,70 e acima do Dummy **na validação**; maior AUC
+vence; empate técnico (Δ < 0,01) favorece a regressão logística.
+
+| Modelo | AUC val. | AUC teste | KS teste | Recall teste | Precision teste | |
+|--------|---------|-----------|----------|--------------|-----------------|---|
+| **XGBoost** | **0,7602** | **0,7479** | 0,3726 | 0,5522 | 0,4464 | ✅ promovido |
+| LogisticRegression | 0,7057 | 0,7206 | **0,3862** | 0,5442 | 0,4892 | elegível |
+| Dummy (estratificado) | 0,4902 | 0,4910 | 0,0000 | 0,2129 | 0,2078 | piso |
+
+**Três leituras honestas:**
+
+- O XGBoost venceu na validação com folga (Δ 0,055, cinco vezes a tolerância de empate):
+  pelo critério declarado, a promoção é inequívoca.
+- **No teste, a vantagem cai para Δ 0,027 de AUC, e o KS da regressão logística é até
+  maior.** Com um único split, parte da diferença de validação é ruído. O critério não foi
+  alterado depois de ver o teste — mudar a regra agora seria escolher pelo resultado.
+- O custo é de **explicabilidade**: a regressão logística teria coeficientes diretos para
+  explicar uma recusa (LGPD art. 20). Com o XGBoost promovido, a explicação ao titular
+  passa a depender de importância de variáveis / contribuições por cliente — 🟡 tratado na
+  auditoria da Etapa 4.
 
 ---
 

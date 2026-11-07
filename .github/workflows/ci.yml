@@ -65,10 +65,13 @@ jobs:
         run: uv sync --group dev --locked
 
       - name: Gerar dataset sintetico
-        run: uv run python scripts/download_data.py --synthetic --rows 5000
+        run: uv run python scripts/download_data.py --synthetic --rows 10000
 
       - name: Preparar referencia e producao (sintetico)
         run: uv run python scripts/prepare_data.py --synthetic
+
+      - name: Treinar e promover o modelo (sintetico)
+        run: uv run python scripts/train_model.py
 
       - name: pytest
         run: uv run pytest --cov=src --cov-report=term-missing
@@ -96,6 +99,9 @@ jobs:
 
       - name: Preparar referencia e producao (dataset real)
         run: uv run python scripts/prepare_data.py
+
+      - name: Treinar e promover o modelo (dataset real)
+        run: uv run python scripts/train_model.py
 
   commitlint:
     name: Commitlint

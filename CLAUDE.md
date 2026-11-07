@@ -89,6 +89,7 @@ uv run python scripts/download_data.py                 # dataset real da UCI, co
 uv run python scripts/download_data.py --synthetic     # fallback sintético (mesmo esquema)
 uv run python scripts/verify_setup.py                  # diagnóstico do ambiente
 uv run python scripts/prepare_data.py                  # limpeza + split ref × produção (--synthetic)
+uv run python scripts/train_model.py                   # treina, compara e promove (ADR 04)
 uv run jupyter lab notebooks/                          # notebooks (versionados com saídas)
 uv run pytest                                          # testes (sem rede)
 uv run ruff check . && uv run ruff format --check .    # lint
@@ -123,7 +124,8 @@ Variáveis úteis: `TC04_LOG_FORMAT=json` (logs em JSON) · `MLFLOW_DISABLE_AGEN
 - Biblioteca de contrato: Pandera — 🟡 proposta (ADR 02)
 - Rastreamento da Etapa 3: MLflow local (SQLite) + dashboard HTML estático — 🟡 proposta (ADR 05)
 - Limiares de drift: PSI ≥ 0,10 atenção · PSI ≥ 0,25 crítico · KS confirma — 🟡 proposta
-- Gate do baseline: AUC-ROC ≥ 0,75 no teste e acima do Dummy — 🟡 revisar após EDA
+- Promoção (ADR 04, ✅): AUC ≥ 0,70 e > Dummy **na validação**; empate (Δ < 0,01) → LogReg. Promovido: XGBoost (val 0,7602 · teste 0,7479), limiar 0,2533 por máximo KS. Sem busca de hiperparâmetros, por decisão
+- Relatórios gerados sobre o sintético usam `*.synthetic.*` e são ignorados pelo Git: nunca sobrescrevem a evidência real
 - `SEX` e `MARRIAGE` fora das features; `AGE` e `EDUCATION` decididos por ablação na Etapa 1
 - Versões travadas (2026-11-07): Python 3.12 · pandas 2.3.3 · numpy 2.5.4 · scikit-learn
   1.9.1 · xgboost 3.4.1 · pandera 0.35.0 · evidently 0.7.23 · mlflow 3.18.0

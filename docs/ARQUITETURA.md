@@ -113,8 +113,10 @@ detecção de drift seguinte. Ver [DATA_CONTRACTS.md](DATA_CONTRACTS.md#-comport
 | 06 | Lote inválido bloqueado por inteiro | 🟡 Proposta | Não mascarar falha de origem nem distorcer o drift |
 | 07 | Split referência × produção único, 50/50, estratificado | 🟡 Proposta | Separação exigida; M01 de controle mede falso positivo |
 | 08 | `SEX` e `MARRIAGE` fora das features | 🟡 Proposta | LGPD art. 6º, III (necessidade) e IX (não discriminação) |
-| 09 | Dataset UCI Default of Credit Card Clients | 🟡 Proposta | ≥ 5.000 linhas, download sem conta, atributos para auditoria de viés |
+| 09 | Dataset UCI Default of Credit Card Clients | ✅ Aceita | Licença CC BY 4.0 compatível com uso acadêmico e com a simulação de drift; ≥ 5.000 linhas; download sem conta; atributos para auditoria de viés. Home Credit descartado pelos termos de uso (ADR 12) |
 | 10 | `uv run` como único runner documentado | ✅ Aceita | Lição do TC01: comandos que dependem de ferramenta não versionada falham |
+| 11 | Contrato valida colunas brutas; features derivadas depois | 🟡 Proposta | Regras de origem (códigos fora do dicionário) só são visíveis no dado bruto |
+| 12 | Termos de uso verificados antes de adotar qualquer dataset; Home Credit descartado | ✅ Aceita | As regras da competição limitam o uso "only for the purposes of the Competition" e proíbem manipular os dados. Ver [README — Origem dos dados](../README.md#1-origem-dos-dados-e-termos-de-uso) e [DATASET.md](DATASET.md#-por-que-não-o-home-credit) |
 
 ---
 

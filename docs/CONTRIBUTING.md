@@ -94,6 +94,18 @@ Decisões tomadas, limitações conhecidas ou pendências.
 
 ---
 
+## 🔐 Dados e Licenças
+
+- O dataset (UCI 350, CC BY 4.0) é baixado por script, **sem conta e sem token**.
+  Ninguém precisa repassar arquivo para ninguém.
+- Toda publicação que usar os dados (README, relatórios, vídeo) mantém a **atribuição**
+  exigida pela licença — texto em [DATASET.md](DATASET.md#-proveniência).
+- **Antes de propor qualquer outro dado** (externo, complementar, de outra fonte), leia os
+  termos de uso e registre a análise como ADR. O Home Credit foi descartado justamente por
+  isso — ver ADR 12 em [ARQUITETURA.md](ARQUITETURA.md).
+
+---
+
 ## 🧰 Ambiente Local
 
 | Ferramenta | Uso |

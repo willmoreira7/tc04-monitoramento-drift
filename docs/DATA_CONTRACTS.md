@@ -41,6 +41,7 @@ corresponde a uma falha plausível de origem.
 | W1 | `BILL_AMT*` negativo acima de um teto | Crédito a favor existe; valores extremos merecem investigação, não bloqueio |
 | W2 | Lote com volume fora de ±30% do esperado | Pode ser sazonalidade; vira métrica na Etapa 3 |
 | W3 | Fração de `PAY_0 ≥ 2` muito acima da referência | É sinal de drift, não de dado inválido — deixa para a Etapa 2 |
+| W4 | Linhas com conteúdo idêntico sob IDs diferentes | Existem 35 no dataset original; podem ser perfis coincidentes (ex.: cartões sem uso, tudo zerado). Viram aviso até a EDA concluir |
 
 > ℹ️ **Contrato ≠ detector de drift.** Um lote com clientes mais endividados é *válido* e
 > deve passar pelo contrato; quem o sinaliza é a Etapa 2. O contrato só reprova o que é

@@ -57,7 +57,7 @@ Conferência item a item do que o enunciado exige. **Atualizar ao fechar cada et
 |-----------|----------|
 | Classificação binária financeira | ✅ Inadimplência no mês seguinte |
 | Mínimo de 5.000 amostras | ✅ 30.000 (UCI Default of Credit Card Clients) |
-| Público, tabular, risco de crédito | ✅ UCI, sem necessidade de conta |
+| Público, tabular, risco de crédito | ✅ UCI, sem necessidade de conta; licença CC BY 4.0 verificada |
 
 ### Vídeo (≤ 5 min, STAR)
 
@@ -83,11 +83,12 @@ os problemas dos Tech Challenges anteriores.
 - [x] Documentar contexto, arquitetura, roadmap, dataset, contrato, drift e monitoramento
 - [x] Estruturar a seção de Governança LGPD no README
 - [x] Definir padrão de commits ([COMMITLINT.md](COMMITLINT.md))
-- [ ] **Confirmar o dataset** ([DATASET.md](DATASET.md)) — hoje 🟡 proposta
+- [x] **Escolher o dataset** ([DATASET.md](DATASET.md)) — UCI 350, após descartar o Home Credit pelos termos de uso
+- [x] Verificar a licença e registrar o SHA256 do arquivo bruto
 - [ ] Confirmar as decisões 🟡 **Proposta** de [ARQUITETURA.md](ARQUITETURA.md)
 - [ ] Criar `pyproject.toml` com `uv`, ruff e grupos de dependência; commitar `uv.lock`
 - [ ] Criar `scripts/verify_setup.py`
-- [ ] Criar `scripts/download_data.py` (UCI, sem credencial) e o fallback sintético
+- [ ] Criar `scripts/download_data.py` (UCI `data.csv`, sem credencial, com conferência do SHA256) e o fallback sintético
 - [ ] Criar a estrutura de diretórios descrita no README
 - [ ] Criar o workflow de CI com lint e testes
 
@@ -115,7 +116,7 @@ os problemas dos Tech Challenges anteriores.
 
 ### Tarefas
 
-- [ ] Baixar o dataset e registrar o SHA256 do arquivo bruto
+- [ ] Investigar as 35 linhas idênticas com IDs diferentes (duplicata ou coincidência)
 - [ ] EDA (`notebooks/01_eda.ipynb`): domínios reais, valores fora do dicionário, desbalanceamento
 - [ ] Split único e estratificado referência × pool de produção (seed 42)
 - [ ] Limpeza da referência (ex.: `EDUCATION` 0/5/6 → 4 "outros") — ver [DATASET.md](DATASET.md)

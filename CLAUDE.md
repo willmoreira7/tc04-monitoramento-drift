@@ -38,7 +38,7 @@ pipeline e governança LGPD. O modelo é deliberadamente simples; o foco é o qu
 em volta dele.
 
 - **Dataset**: Default of Credit Card Clients (UCI id 350) — 30.000 linhas, 23 features,
-  target binário de inadimplência. 🟡 Proposta — ver `docs/DATASET.md`
+  target binário de inadimplência. Arquivo `data.csv` da UCI (colunas X1…X23, Y, renomeadas pelo loader)
 - **Modelo**: classificador simples (LogisticRegression / XGBoost), comparado com Dummy
 - **Stack**: Scikit-Learn · XGBoost · Pandera · Evidently AI · MLflow · structlog · uv · ruff · pytest
 
@@ -109,7 +109,7 @@ uv sync --group dev        # ambiente (quando pyproject.toml existir)
 
 > Atualizar sempre que uma decisão 🟡 Proposta for confirmada ou alterada.
 
-- Dataset: UCI Default of Credit Card Clients — 🟡 proposta
+- Dataset: UCI Default of Credit Card Clients, CC BY 4.0 — ✅ decidido (2026-11-07). Home Credit descartado pelos termos de uso (ADR 12)
 - Biblioteca de contrato: Pandera — 🟡 proposta (ADR 02)
 - Rastreamento da Etapa 3: MLflow local (SQLite) + dashboard HTML estático — 🟡 proposta (ADR 05)
 - Limiares de drift: PSI ≥ 0,10 atenção · PSI ≥ 0,25 crítico · KS confirma — 🟡 proposta

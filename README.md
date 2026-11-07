@@ -154,7 +154,8 @@ tc04-monitoramento-drift/
 | **uv** | 0.5+ | Ambiente Python com versões travadas | `pip install uv` ou [astral.sh/uv](https://docs.astral.sh/uv/getting-started/installation/) |
 | **Git** | — | Clonar o repositório | — |
 
-O dataset é baixado por script a partir da UCI, **sem conta e sem credencial** — ver
+O dataset (UCI *Default of Credit Card Clients*, licença CC BY 4.0) é baixado por script,
+**sem conta e sem credencial**, e tem a integridade conferida por SHA256 — ver
 [docs/DATASET.md](docs/DATASET.md).
 
 ### Padrão de commits (opcional, só para contribuir)
@@ -205,11 +206,49 @@ validar mensagens de commit. Ver [docs/COMMITLINT.md](docs/COMMITLINT.md).
 > análise abaixo trata o projeto **como se fosse a operação de uma fintech brasileira**
 > sujeita à Lei 13.709/2018 (LGPD), que é o cenário do enunciado.
 
-### 1. Inventário de dados pessoais
+### 1. Origem dos dados e termos de uso
+
+Antes de governar os dados dos clientes da fintech fictícia, o grupo precisa ter o
+**direito de usar** os dados que ele mesmo obteve. É o princípio da finalidade (art. 6º, I)
+aplicado ao próprio projeto.
+
+| Item | Situação |
+|------|----------|
+| Fonte | [UCI ML Repository, id 350](https://archive.ics.uci.edu/dataset/350/default+of+credit+card+clients) |
+| Licença | **CC BY 4.0** — permite usar, **adaptar** e redistribuir, com atribuição |
+| Atribuição | Yeh, I. (2009). *Default of Credit Card Clients* [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C55S3H |
+| Anonimização | Feita na fonte: sem nome, documento ou contato |
+| Integridade | SHA256 registrado em [docs/DATASET.md](docs/DATASET.md#-proveniência) e conferido no download |
+
+#### 🚫 Por que não usamos o Home Credit Default Risk
+
+O Home Credit foi a **primeira escolha** do grupo: é sugerido pelo próprio enunciado e é
+mais rico (renda, emprego, scores de bureau). Chegamos a baixá-lo. Ao ler as regras da
+competição do Kaggle — aceitas por todo usuário antes do download — encontramos:
+
+> *"After your acceptance of these Rules, you may access and use the Competition Data
+> **only for the purposes of the Competition**."* — regra específica da competição, que
+> **substitui** a permissão genérica para uso acadêmico (regra geral 7.A)
+
+> *"You agree **not to manipulate the data** and not to use it for any other purpose other
+> than to participate in the Competition."* — regra geral 7.B
+
+Este projeto é acadêmico (fora da finalidade permitida), **altera a distribuição dos dados
+de propósito** para simular drift (manipulação proibida) e precisa mostrar resultados a um
+avaliador que não aceitou as regras (disponibilização proibida). Os três pontos conflitam
+com os termos. **Trocamos de dataset e eliminamos a cópia local.**
+
+> 💡 **"Público" não significa "de uso livre".** O dataset estava a um clique, era sugerido
+> pelo enunciado e é amplamente usado em cursos — e ainda assim os termos não cobriam este
+> uso. Verificar a licença virou passo obrigatório da escolha de dados (ADR 12). O custo
+> da troca (perder renda e emprego) está detalhado em
+> [docs/DATASET.md](docs/DATASET.md#-por-que-não-o-home-credit).
+
+### 2. Inventário de dados pessoais
 
 | Coluna | Classificação LGPD | Usada no modelo? | Tratamento |
 |--------|-------------------|------------------|------------|
-| `ID` | Identificador direto | ❌ Não | Descartada na ingestão; substituída por chave técnica sem significado |
+| `ID` | Chave sequencial atribuída na fonte (pseudônimo) | ❌ Não | Usada só para unicidade e rastreio; nunca é feature |
 | `SEX` | Dado pessoal com potencial discriminatório | ❌ Não | Fora das features; mantida só no conjunto de **auditoria de viés** |
 | `MARRIAGE` | Dado pessoal com potencial discriminatório | ❌ Não | Idem `SEX` |
 | `AGE` | Dado pessoal | 🟡 A decidir na Etapa 1 | Necessária ao contrato (≥ 18); uso como feature depende da auditoria de viés |
@@ -220,7 +259,7 @@ Nenhuma coluna do dataset é **dado pessoal sensível** no sentido do art. 5º, 
 racial, saúde, religião, biometria etc.). Sexo e estado civil não estão nessa lista, mas
 o **princípio da não discriminação** (art. 6º, IX) justifica tirá-los do modelo.
 
-### 2. Base legal da decisão de crédito
+### 3. Base legal da decisão de crédito
 
 | Tratamento | Base legal | Fundamento |
 |-----------|-----------|-----------|
@@ -236,7 +275,7 @@ crédito. Consequências para este projeto:
 - O Model Card documenta os critérios de forma compreensível (art. 20, §1º)
 - Cada predição é rastreável à versão do modelo e ao lote que a gerou (logs + MLflow)
 
-### 3. Privacy by Design e by Default no pipeline
+### 4. Privacy by Design e by Default no pipeline
 
 | Princípio (art. 6º) | Como o pipeline aplica |
 |--------------------|------------------------|
@@ -252,7 +291,7 @@ crédito. Consequências para este projeto:
 > trazem distribuições agregadas por feature; o pipeline **não** versiona amostras de
 > linhas. Isso é verificado antes de cada commit em `reports/`.
 
-### 4. Plano de retenção
+### 5. Plano de retenção
 
 | Dado | Retenção | Fundamento | Destino ao fim |
 |------|----------|-----------|----------------|
@@ -263,7 +302,7 @@ crédito. Consequências para este projeto:
 | Lotes em quarentena | 30 dias 🟡 *proposta* | Investigação da falha | Eliminação |
 | Logs e métricas de monitoramento | Sem dado pessoal; retenção livre | Agregados, não identificam titular | — |
 
-### 5. Mitigação de vieses
+### 6. Mitigação de vieses
 
 > 🟡 **A preencher na Etapa 1** com números medidos: taxa de aprovação e recall por grupo
 > de `SEX`, `AGE` (faixas) e `EDUCATION`, razão de impacto desigual (regra dos 4/5) e o

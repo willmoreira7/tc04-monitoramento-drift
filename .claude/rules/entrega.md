@@ -51,6 +51,9 @@ Derivadas das avaliações dos três Tech Challenges anteriores. Cada regra diz 
 ## 4. Requisitos do enunciado que viram regra
 
 - Mínimo de **5.000 amostras** no dataset. German Credit (1.000) **não serve**.
+- **Licença verificada antes de adotar qualquer dado.** "Público" não é "de uso livre": o
+  Home Credit, sugerido pelo próprio enunciado, foi descartado porque as regras da
+  competição limitam o uso aos fins da competição e proíbem manipular os dados (ADR 12).
 - Pelo menos **3 regras rígidas** no contrato; o lote ruim precisa ser **bloqueado**, não
   só reportado.
 - Pelo menos **2 variáveis importantes** com drift intencional.

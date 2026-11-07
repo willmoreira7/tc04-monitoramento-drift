@@ -3,7 +3,9 @@
 > Escolha do dataset, esquema, problemas conhecidos e a separação entre referência e
 > produção.
 
-> 🟡 **Status: proposta.** Confirmar na Etapa 0 antes de qualquer código.
+> ✅ **Decisão:** UCI *Default of Credit Card Clients* (id 350), licença **CC BY 4.0**.
+> Números conferidos no arquivo baixado em 2026-11-07 (SHA256 em
+> [Proveniência](#-proveniência)).
 
 ---
 
@@ -13,36 +15,81 @@
 - **Pelo menos 5.000 amostras**
 - Público e tabular, onde a degradação econômica faça sentido prático
 
+E uma exigência que o enunciado não escreve, mas o tema impõe: **o grupo precisa ter o
+direito de usar os dados para esta finalidade**. Um projeto avaliado em governança não
+pode começar violando os termos de uso do próprio dataset.
+
 ---
 
-## ⚖️ Candidatos
+## ⚖️ Candidatos avaliados
 
-| Dataset | Linhas | Download sem conta | Atributos para LGPD/viés | Renda | Problemas reais de qualidade | Veredito |
-|---------|--------|-------------------|--------------------------|-------|-----------------------------|----------|
-| German Credit (UCI/Kaggle) | 1.000 | ✅ | ✅ | ❌ | Poucos | ❌ **Abaixo do mínimo de 5.000** |
-| **Default of Credit Card Clients (UCI 350)** | **30.000** | ✅ | ✅ `SEX`, `AGE`, `EDUCATION`, `MARRIAGE` | ❌ | ✅ Códigos fora do dicionário | ✅ **Proposto** |
-| Credit Risk Dataset (Kaggle) | ~32.500 | ❌ Conta Kaggle | 🟡 Só idade | ✅ | ✅ Nulos, idade 144 | 🟡 Alternativa |
-| Give Me Some Credit (Kaggle) | 150.000 | ❌ Conta + regras da competição | 🟡 Só idade | ✅ | ✅ Renda nula, idade 0 | 🟡 Alternativa |
-| Home Credit Default Risk (Kaggle) | 307.000 | ❌ Conta + regras da competição | ✅ | ✅ | ✅ | ❌ Grande demais para o foco do projeto |
-| Lending Club | > 1 milhão | ❌ | 🟡 | ✅ | ✅ | ❌ Grande demais |
+| Dataset | Linhas | Termos de uso permitem este projeto? | Outros prós e contras | Veredito |
+|---------|--------|-------------------------------------|----------------------|----------|
+| German Credit | 1.000 | ✅ | **Abaixo do mínimo de 5.000** | ❌ Desqualificado |
+| **Default of Credit Card Clients (UCI 350)** | **30.000** | ✅ **CC BY 4.0**: uso, adaptação e redistribuição com atribuição | Sem renda; scoring de comportamento de cartão | ✅ **Escolhido** |
+| Home Credit Default Risk (Kaggle) | 307.511 | ❌ **Só para os fins da competição; proibido manipular os dados** | Mais rico (renda, emprego), mas inviável pelos termos | ❌ [Ver abaixo](#-por-que-não-o-home-credit) |
+| Give Me Some Credit (Kaggle) | 150.000 | ⚠️ Regras de competição do Kaggle — mesmo risco do Home Credit | ~6,7% de positivos | ❌ |
+| Credit Risk Dataset (Kaggle) | ~32.500 | ⚠️ Procedência e licença desconhecidas | `loan_grade` quase vaza o target | ❌ |
+| Lending Club | ~2,2 milhões | ⚠️ Cópias não oficiais; a Lending Club não distribui mais | Enorme; vazamento pós-concessão | ❌ |
 
-### Por que o UCI Default of Credit Card Clients
+---
 
-1. **Reprodutibilidade sem atrito.** Download direto da UCI, sem conta nem aceite de
-   regras. O avaliador e o CI conseguem baixar com um comando — a principal lição do TC01.
-2. **Tamanho certo.** 30.000 linhas comportam um split 50/50 (15.000 de referência,
-   15.000 de pool de produção) e seis lotes mensais de 2.500 linhas.
-3. **Governança rica.** Traz `SEX`, `MARRIAGE`, `EDUCATION` e `AGE`, o que dá substância
-   real à seção de vieses e minimização da LGPD.
-4. **Problemas de qualidade reais.** `EDUCATION` e `MARRIAGE` têm códigos fora do
-   dicionário oficial; o contrato de dados tem trabalho de verdade a fazer.
+## 🚫 Por que não o Home Credit
+
+O Home Credit Default Risk foi a primeira escolha do grupo e é um dos datasets sugeridos
+no próprio enunciado. Chegamos a baixá-lo e conferir as anomalias. Ao ler as regras da
+competição — que todo usuário aceita antes do download — encontramos duas cláusulas
+incompatíveis com este projeto:
+
+> **Regras específicas da competição** (substituem a regra geral 7.A):
+> *"After your acceptance of these Rules, you may access and use the Competition Data
+> **only for the purposes of the Competition**."*
+
+> **Regra geral 7.B — Data Security:**
+> *"You agree **not to manipulate the data** and not to use it for any other purpose other
+> than to participate in the Competition."*
+> *"You agree not to transmit, duplicate, publish, redistribute or otherwise provide or
+> make available the Competition Data to any party not participating in the Competition."*
+
+| Cláusula | Conflito com o projeto |
+|----------|------------------------|
+| Uso só para os fins da competição | O projeto é um trabalho acadêmico. A permissão genérica para *"academic research and education"* (regra 7.A) foi **substituída** pela regra específica |
+| Proibido manipular os dados | O núcleo da Etapa 2 é **alterar a distribuição** dos dados para simular drift |
+| Proibido disponibilizar a não participantes | O professor e parte do grupo não aceitaram as regras; nenhum lote derivado poderia ser mostrado |
+
+**Decisão:** trocar de dataset e **eliminar a cópia local** do Home Credit. Mantê-la sem
+finalidade permitida contrariaria os mesmos termos.
+
+> 💡 **Lição de governança.** Ser "público" não é o mesmo que ser de uso livre. O dataset
+> estava a um clique de distância, era sugerido pelo enunciado e é amplamente usado em
+> cursos — e mesmo assim os termos não cobriam este uso. A verificação da licença passou a
+> ser um passo obrigatório da escolha de dados (ADR 12 em [ARQUITETURA.md](ARQUITETURA.md)).
+
+---
+
+## ✅ Por que o UCI Default of Credit Card Clients
+
+1. **Licença limpa.** CC BY 4.0 permite usar, **adaptar** (simular drift) e
+   **redistribuir**, com uma única obrigação: atribuição. Não há conflito com nenhuma
+   etapa do projeto.
+2. **Reprodutibilidade sem atrito.** Download direto da UCI, sem conta e sem token. O
+   avaliador e o CI baixam com um comando — a principal lição do TC01.
+3. **Tamanho adequado.** 30.000 linhas comportam um split 50/50 e seis lotes mensais de
+   2.500 linhas.
+4. **Governança rica.** Traz sexo, escolaridade, estado civil e idade — a própria UCI os
+   marca como atributos demográficos. Há diferença real de inadimplência entre sexos
+   (24,2% × 20,8%), o que dá substância à auditoria de viés.
+5. **Problemas de qualidade reais.** Códigos fora do dicionário em `EDUCATION` e
+   `MARRIAGE`, e 35 linhas com conteúdo idêntico sob IDs diferentes.
 
 ### O custo da escolha
 
-- **Não há coluna de renda.** O enunciado cita *"limites de renda"* como **exemplo** de
-  regra. O equivalente aqui é `LIMIT_BAL` (limite de crédito concedido) e as faturas.
-- **Valores em dólar taiwanês (NT$) e dados de 2005.** Irrelevante para o objetivo, que é
-  o ciclo de sustentação, mas declarado no Model Card.
+| Custo | Como lidamos |
+|-------|--------------|
+| **Não há renda nem emprego.** O enunciado cita "limites de renda" e "desemprego" como **exemplos** | Os equivalentes são `LIMIT_BAL` (limite concedido), faturas e pagamentos. A capacidade de pagamento é inferida, e isso é declarado no Model Card |
+| É scoring de **comportamento** (cliente de cartão), não de concessão a novos proponentes | O monitoramento de carteira é exatamente o caso de uso de drift em crédito; a narrativa do README trata a revisão de limites e a manutenção do crédito |
+| Dados de 2005, em dólar taiwanês (NT$) | Irrelevante para o objetivo (ciclo de sustentação); declarado no Model Card |
+| `BILL_AMT1…6` muito correlacionadas (0,95 entre meses vizinhos) | Drift numa delas aparece em todas: o relatório agrupa as séries e a análise causal considera isso |
 
 ---
 
@@ -51,42 +98,60 @@
 Fonte: [UCI Machine Learning Repository — id 350](https://archive.ics.uci.edu/dataset/350/default+of+credit+card+clients).
 Clientes de cartão de crédito em Taiwan, histórico de abril a setembro de 2005.
 
-| Coluna | Tipo | Domínio documentado | Papel |
-|--------|------|---------------------|-------|
-| `ID` | int | Único | Identificador — **descartado** |
-| `LIMIT_BAL` | float | > 0 (NT$) | Feature |
-| `SEX` | cat | 1 = masculino, 2 = feminino | Auditoria de viés — **fora do modelo** |
-| `EDUCATION` | cat | 1 pós, 2 universidade, 3 ensino médio, 4 outros | A decidir (ablação) |
-| `MARRIAGE` | cat | 1 casado, 2 solteiro, 3 outros | Auditoria de viés — **fora do modelo** |
-| `AGE` | int | anos | A decidir (ablação); contrato exige ≥ 18 |
-| `PAY_0`, `PAY_2` … `PAY_6` | int | −1 pago em dia; 1…9 meses de atraso | Feature |
-| `BILL_AMT1` … `BILL_AMT6` | float | Valor da fatura (pode ser negativo: crédito a favor) | Feature |
-| `PAY_AMT1` … `PAY_AMT6` | float | ≥ 0, valor pago | Feature |
-| `default payment next month` | binário | 1 = inadimplente | **Target** (renomear para `default`) |
+O arquivo oficial `data.csv` usa nomes genéricos (`X1`…`X23`, `Y`). O loader renomeia
+para os nomes do dicionário da UCI:
+
+| Coluna original | Nome no projeto | Tipo | Domínio documentado | Papel |
+|-----------------|-----------------|------|---------------------|-------|
+| `ID` | `ID` | int | Único | Chave — **nunca** é feature |
+| `X1` | `LIMIT_BAL` | int | > 0 (NT$) | Feature |
+| `X2` | `SEX` | cat | 1 = masculino, 2 = feminino | Auditoria de viés — **fora do modelo** |
+| `X3` | `EDUCATION` | cat | 1 pós, 2 universidade, 3 ensino médio, 4 outros | A decidir (ablação) |
+| `X4` | `MARRIAGE` | cat | 1 casado, 2 solteiro, 3 outros | Auditoria de viés — **fora do modelo** |
+| `X5` | `AGE` | int | anos | A decidir (ablação); contrato exige ≥ 18 |
+| `X6`–`X11` | `PAY_0`, `PAY_2` … `PAY_6` | int | −1 pago em dia; 1…9 meses de atraso | Feature |
+| `X12`–`X17` | `BILL_AMT1` … `BILL_AMT6` | int | Valor da fatura (pode ser negativo: crédito a favor) | Feature |
+| `X18`–`X23` | `PAY_AMT1` … `PAY_AMT6` | int | ≥ 0, valor pago | Feature |
+| `Y` | `default` | binário | 1 = inadimplente no mês seguinte | **Target** |
 
 > ℹ️ Não existe `PAY_1` — a sequência original pula de `PAY_0` para `PAY_2`. Manter os
-> nomes originais evita confusão com a documentação da fonte.
+> nomes do dicionário evita confusão com a documentação da fonte.
 
-### Problemas conhecidos (a confirmar na EDA)
+### Perfil conferido
 
-| Problema | Observação | Tratamento proposto |
-|----------|-----------|---------------------|
-| `EDUCATION` com 0, 5, 6 | Fora do dicionário | Na referência: agrupar em 4 ("outros"). Em produção: o contrato rejeita |
-| `MARRIAGE` com 0 | Fora do dicionário | Agrupar em 3 ("outros") na referência |
-| `PAY_*` com −2 e 0 | Não documentados (interpretados como "sem consumo" e "crédito rotativo") | Aceitos no domínio `[-2, 9]` |
-| `BILL_AMT*` negativos | Crédito a favor do cliente | Aceitos |
-| Desbalanceamento | ~22% de inadimplentes | Split estratificado; métricas além de acurácia |
+| Item | Valor |
+|------|-------|
+| Linhas × colunas | 30.000 × 25 |
+| Inadimplência | 22,12% |
+| Nulos | 0 |
+| `AGE` | 21 a 79 anos |
+| `LIMIT_BAL` | 10.000 a 1.000.000 |
+| `PAY_*` | −2 a 8 |
+| `BILL_AMT*` | −339.603 a 1.664.089 (1.930 clientes com alguma fatura negativa) |
+| `PAY_AMT*` | 0 a 1.684.259 |
 
-> 🔴 A limpeza é aplicada **antes** do split e registrada no código, nunca à mão. O
-> contrato de produção é mais estrito que a limpeza: em produção, código fora do domínio
-> é sinal de problema na origem, não algo a corrigir em silêncio.
+### Problemas conhecidos
+
+| Problema | Ocorrência | Na referência (limpeza) | Em produção (contrato) |
+|----------|-----------|-------------------------|------------------------|
+| `EDUCATION` = 0, 5, 6 | 14 + 280 + 51 = 345 | Agrupar em 4 ("outros") | Bloqueia |
+| `MARRIAGE` = 0 | 54 | Agrupar em 3 ("outros") | Bloqueia |
+| Linhas idênticas com IDs diferentes | 35 | 🟡 Investigar na EDA (cadastro duplicado ou coincidência de perfis com valores zerados) | Aviso |
+| `PAY_*` = −2 e 0 | Frequentes | Não documentados na fonte; interpretados como "sem consumo" e "crédito rotativo" | Aceitos no domínio [−2, 9] |
+| `BILL_AMT*` negativos | 1.930 clientes | Crédito a favor; aceitos | Aceitos |
+| Desbalanceamento | 22,12% | Split estratificado | — |
+
+> 🔴 A limpeza da referência é código, aplicada **antes** do split, e cada alteração é
+> contada e logada. O contrato de produção é mais estrito que a limpeza: lá, código fora do
+> domínio é sinal de problema na origem, não algo a corrigir em silêncio.
 
 ---
 
 ## ✂️ Separação Referência × Produção
 
 ```
-UCI (30.000 linhas, ~22% inadimplentes)
+UCI (30.000 linhas, 22,12% inadimplentes)
+ │  limpeza declarada
  │  split estratificado pelo target, seed 42, feito UMA vez
  ├── referência ........ 15.000 → treino 70% · validação 15% · teste 15%
  └── pool de produção .. 15.000 → 6 lotes mensais de 2.500 (M01…M06)
@@ -101,9 +166,23 @@ UCI (30.000 linhas, ~22% inadimplentes)
 
 **Garantias (testadas):**
 
-- Nenhuma linha do pool de produção aparece na referência
+- Nenhum `ID` do pool de produção aparece na referência
 - A taxa de inadimplência dos dois lados difere menos de 1 p.p. antes da simulação
 - O lote M01 (controle, sem perturbação) não acusa drift
+
+---
+
+## 📥 Obtenção
+
+| Passo | Detalhe |
+|-------|---------|
+| Download | `scripts/download_data.py` (⬜ Etapa 0) baixa `data.csv` da UCI — **sem conta, sem token** |
+| Integridade | O script confere o SHA256 abaixo; se não bater, falha com mensagem clara |
+| Fonte fora do ar | Gerador sintético com o mesmo esquema: valida o pipeline, não reproduz as métricas |
+
+> ℹ️ A licença permitiria versionar o arquivo (2,9 MB) no repositório. Optamos por não
+> versionar para manter uma única fonte oficial e o hash como contrato de integridade;
+> se a UCI ficar instável, versionar passa a ser uma contingência permitida.
 
 ---
 
@@ -111,10 +190,14 @@ UCI (30.000 linhas, ~22% inadimplentes)
 
 | Item | Valor |
 |------|-------|
-| Fonte | UCI ML Repository, id 350 |
-| Licença | CC BY 4.0 |
-| Citação | Yeh, I. C., & Lien, C. H. (2009). *The comparisons of data mining techniques for the predictive accuracy of probability of default of credit card clients.* Expert Systems with Applications, 36(2). |
-| Hash do arquivo bruto | 🟡 Registrar após o primeiro download |
+| Fonte | [UCI ML Repository, id 350](https://archive.ics.uci.edu/dataset/350/default+of+credit+card+clients) |
+| Arquivo | `https://archive.ics.uci.edu/static/public/350/data.csv` |
+| Licença | **CC BY 4.0** — uso, adaptação e redistribuição permitidos, com atribuição |
+| Atribuição exigida | Yeh, I. (2009). *Default of Credit Card Clients* [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C55S3H |
+| Artigo de origem | Yeh, I. C., & Lien, C. H. (2009). *The comparisons of data mining techniques for the predictive accuracy of probability of default of credit card clients.* Expert Systems with Applications, 36(2). |
+| Anonimização | Feita na fonte: sem nome, documento ou contato; `ID` é sequencial |
+| SHA256 de `data.csv` | `45bcf4df62ff2e237a74eb155cabfb4bbbc171219a0637daef44fdad07503dd0` |
+| Baixado em | 2026-11-07 |
 
 ---
 

@@ -22,7 +22,7 @@
 | Seed | 42 |
 | Dataset | UCI Default of Credit Card Clients — ver [DATASET.md](DATASET.md) |
 | Dados de treino | Apenas o conjunto de **referência** |
-| Hash do dataset | 🟡 |
+| Hash do dataset | SHA256 `45bcf4df…3dd0` (completo em [DATASET.md](DATASET.md#-proveniência)) |
 
 ---
 

@@ -114,7 +114,13 @@ Decisões tomadas, limitações conhecidas ou pendências.
 | Git | Controle de versão |
 | Node.js | Opcional — apenas Husky + commitlint |
 
-> 🚧 Comandos de ambiente entram aqui quando `pyproject.toml` existir (Etapa 0).
+```bash
+uv sync --group dev
+uv run python scripts/download_data.py
+uv run python scripts/verify_setup.py
+```
+
+> ℹ️ Projeto dentro do OneDrive? Defina `UV_LINK_MODE=copy` para evitar o aviso de hardlink do uv.
 
 > ⚠️ Não use `pip install -e ".[dev]"`: as dependências de desenvolvimento ficarão em
 > `[dependency-groups]` (PEP 735), que o pip ignora silenciosamente.

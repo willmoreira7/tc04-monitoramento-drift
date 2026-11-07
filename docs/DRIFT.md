@@ -68,7 +68,9 @@ Com 2.500 linhas por lote contra 15.000 de referência, o p-valor do KS rejeita 
 diferenças **sem relevância prática**. Usar só `p < 0,05` geraria alerta em M01. Por isso:
 
 - a decisão usa **PSI**, que mede tamanho de efeito
-- o KS é reportado com a **estatística D**, não só o p-valor
+- o KS é reportado com a **estatística D**, não só o p-valor. ⚠️ O `ValueDrift(method="ks")`
+  do Evidently 0.7 devolve **apenas o p-valor** (verificado na Etapa 0); a estatística D é
+  calculada pelo projeto com `scipy.stats.ks_2samp` e registrada junto
 - o lote M01 serve de calibração: se o KS dispara em M01, o limiar está errado
 
 ### Limiares propostos

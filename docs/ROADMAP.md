@@ -9,7 +9,7 @@
 
 | Etapa | Disciplina | Peso relacionado | Status |
 |-------|-----------|------------------|--------|
-| [0 — Fundação](#-etapa-0--fundação-do-repositório) | — | — | 🟡 Em andamento |
+| [0 — Fundação](#-etapa-0--fundação-do-repositório) | — | — | ✅ Concluída |
 | [1 — Validação de Dados](#-etapa-1--validação-de-dados-e-contratos) | Validação de Dados e Bibliotecas de Qualidade | 25% | ⬜ Não iniciada |
 | [2 — Drift](#-etapa-2--simulação-e-detecção-de-drift) | Data Drift | 25% | ⬜ Não iniciada |
 | [3 — Observabilidade](#-etapa-3--observabilidade-de-pipelines-e-modelos) | Monitoramento de Pipelines e Infraestrutura | 20% | ⬜ Não iniciada |
@@ -85,12 +85,13 @@ os problemas dos Tech Challenges anteriores.
 - [x] Definir padrão de commits ([COMMITLINT.md](COMMITLINT.md))
 - [x] **Escolher o dataset** ([DATASET.md](DATASET.md)) — UCI 350, após descartar o Home Credit pelos termos de uso
 - [x] Verificar a licença e registrar o SHA256 do arquivo bruto
-- [ ] Confirmar as decisões 🟡 **Proposta** de [ARQUITETURA.md](ARQUITETURA.md)
-- [ ] Criar `pyproject.toml` com `uv`, ruff e grupos de dependência; commitar `uv.lock`
-- [ ] Criar `scripts/verify_setup.py`
-- [ ] Criar `scripts/download_data.py` (UCI `data.csv`, sem credencial, com conferência do SHA256) e o fallback sintético
-- [ ] Criar a estrutura de diretórios descrita no README
-- [ ] Criar o workflow de CI com lint e testes
+- [x] Regra: cada decisão 🟡 **Proposta** de [ARQUITETURA.md](ARQUITETURA.md) é confirmada na etapa que a implementa
+- [x] Criar `pyproject.toml` com `uv`, ruff e grupos de dependência; commitar `uv.lock`
+- [x] Criar `scripts/verify_setup.py`
+- [x] Criar `scripts/download_data.py` (UCI `data.csv`, sem credencial, com conferência do SHA256) e o fallback sintético
+- [x] Criar a estrutura de diretórios descrita no README
+- [x] Criar o workflow de CI (lint, testes, dataset real, commitlint)
+- [x] Executar o "Como Executar" do README num clone limpo
 
 ### 🧰 Arquivos de tooling
 
@@ -98,14 +99,16 @@ os problemas dos Tech Challenges anteriores.
 |------|-------|--------|
 | `commitlint.config.js`, `package.json`, `.husky/commit-msg` | Validação das mensagens de commit | ✅ |
 | `.gitignore` | Dados e modelos fora do Git; `reports/` dentro | ✅ |
-| `pyproject.toml` + `uv.lock` | Dependências travadas, ruff, pytest | ⬜ |
-| `scripts/verify_setup.py` | Checagem de ambiente | ⬜ |
-| `.github/workflows/ci.yml` | lint → testes → pipeline fim a fim | ⬜ |
+| `pyproject.toml` + `uv.lock` | Dependências travadas, ruff, pytest | ✅ |
+| `.gitattributes` | Finais de linha LF no repositório | ✅ |
+| `scripts/download_data.py` | Dataset real (SHA256) ou sintético | ✅ |
+| `scripts/verify_setup.py` | Checagem de ambiente | ✅ |
+| `.github/workflows/ci.yml` | lint → testes · dataset real · commitlint (pipeline fim a fim nas próximas etapas) | ✅ |
 
 ### ✅ Critério de aceite
 
 - Qualquer integrante clona, entende o escopo e sabe onde colocar o próprio código
-- `uv sync --group dev && uv run python scripts/verify_setup.py` passa num clone limpo
+- ✅ `uv sync --group dev && uv run python scripts/verify_setup.py` passa num clone limpo (verificado em 2026-11-07, Windows; Linux pelo CI)
 
 ---
 

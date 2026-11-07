@@ -75,7 +75,10 @@ def check_dataset() -> tuple[str, str]:
     if is_valid(raw_dataset_path(), load_config()["dataset"]["sha256"]):
         return OK, "dataset real presente e integro (SHA256 confere)"
     if raw_dataset_path().exists():
-        return FAIL, "dataset real com SHA256 divergente: apague-o e baixe de novo"
+        return FAIL, (
+            "dataset real com SHA256 divergente: rode `uv run python scripts/download_data.py`"
+            " para substitui-lo"
+        )
     if synthetic_dataset_path().exists():
         return WARN, "so o sintetico presente: metricas nao reproduzem as documentadas"
     return WARN, "dataset ausente: `uv run python scripts/download_data.py`"

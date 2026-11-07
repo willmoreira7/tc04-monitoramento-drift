@@ -4,7 +4,6 @@ Grava a referencia em ``data/reference/`` e o pool em ``data/production/``, mais
 ``split_metadata.json`` com contagens, taxas e o hash do arquivo de origem.
 """
 
-import json
 import time
 from pathlib import Path
 from typing import Any
@@ -16,6 +15,7 @@ from src.data.loader import DataSource, load_raw, source_path
 from src.data.schema import TARGET_COLUMN
 from src.data.split import DataSplit, default_rate_gap_pp, split_dataset
 from src.monitoring.log import get_logger
+from src.pipeline.io import write_json
 
 logger = get_logger(__name__)
 
@@ -94,4 +94,4 @@ def _write(
         getattr(split, name).to_parquet(reference_dir / f"{name}.parquet", index=False)
     split.production_pool.to_parquet(production_dir / "pool.parquet", index=False)
     metadata_path = reference_dir / METADATA_FILE
-    metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+    write_json(metadata_path, metadata)

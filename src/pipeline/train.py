@@ -22,6 +22,7 @@ from src.models.train import (
     train_candidates,
 )
 from src.monitoring.log import get_logger
+from src.pipeline.io import write_json
 from src.pipeline.prepare import METADATA_FILE
 
 logger = get_logger(__name__)
@@ -103,9 +104,9 @@ def _write(
     report_dir.mkdir(parents=True, exist_ok=True)
     joblib.dump(promoted.model, model_dir / MODEL_FILE)
     metadata = {**summary, "threshold": promoted.threshold}
-    (model_dir / MODEL_METADATA_FILE).write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+    write_json(model_dir / MODEL_METADATA_FILE, metadata)
     report = report_dir / comparison_file(summary["source"])
-    report.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    write_json(report, summary)
 
 
 def comparison_file(source: str) -> str:

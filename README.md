@@ -15,7 +15,7 @@ caiu até a inadimplência aparecer no balanço, meses depois.
 
 | Sintoma em produção | Por que é silencioso | O que este projeto faz |
 |---------------------|---------------------|------------------------|
-| Lote com dados inválidos (nulos, idade < 18, duplicatas) | O modelo pontua lixo sem reclamar | **Contrato de dados** bloqueia o lote antes da inferência |
+| Lote com dados inválidos (renda nula, idade < 18, duplicatas, 1.000 anos de emprego) | O modelo pontua lixo sem reclamar | **Contrato de dados** bloqueia o lote antes da inferência |
 | Perfil dos clientes muda (Data Drift) | Nenhum erro técnico é disparado | **Testes estatísticos** (PSI, KS) comparam produção × referência |
 | A relação perfil → inadimplência muda (Concept Drift) | As features parecem normais | **Monitoramento de performance** quando os rótulos chegam |
 | Ninguém sabe o estado do pipeline | Falhas e alertas ficam espalhados | **Logs e métricas centralizados** + dashboard |
@@ -46,7 +46,7 @@ entregável é a camada de **sustentação** em torno dele:
 
 ```
                  ┌──────────────────────────────────────────────┐
-  UCI dataset ─► │ split 50/50 (estratificado, seed 42)         │
+  Home Credit ─► │ limpeza → split 50/50 estratificado (seed 42)│
                  └───────────┬──────────────────────┬───────────┘
                              ▼                      ▼
                  ┌──────────────────────┐  ┌──────────────────────────┐
@@ -153,9 +153,12 @@ tc04-monitoramento-drift/
 |-----------|--------|----------|---------------|
 | **uv** | 0.5+ | Ambiente Python com versões travadas | `pip install uv` ou [astral.sh/uv](https://docs.astral.sh/uv/getting-started/installation/) |
 | **Git** | — | Clonar o repositório | — |
+| **Conta no Kaggle** | — | Baixar o dataset (não versionado) | [Home Credit Default Risk](https://www.kaggle.com/competitions/home-credit-default-risk/data) |
 
-O dataset é baixado por script a partir da UCI, **sem conta e sem credencial** — ver
-[docs/DATASET.md](docs/DATASET.md).
+O dataset é o **Home Credit Default Risk**. O download exige conta no Kaggle **e** o
+aceite das regras da competição (sem isso a API retorna 403). Sem conta, haverá um gerador
+sintético com o mesmo esquema: ele valida o pipeline, mas não reproduz as métricas
+documentadas. Passo a passo em [docs/DATASET.md](docs/DATASET.md#-obtenção).
 
 ### Padrão de commits (opcional, só para contribuir)
 
@@ -201,24 +204,38 @@ validar mensagens de commit. Ver [docs/COMMITLINT.md](docs/COMMITLINT.md).
 > O enunciado exige esta documentação **consolidada no README**. Ela vive aqui, não em
 > `docs/`.
 
-> ℹ️ **Premissa.** O dataset é público, de origem taiwanesa e já anonimizado na fonte. A
-> análise abaixo trata o projeto **como se fosse a operação de uma fintech brasileira**
-> sujeita à Lei 13.709/2018 (LGPD), que é o cenário do enunciado.
+> ℹ️ **Premissa.** O dataset (Home Credit Default Risk) é público e foi anonimizado pelo
+> provedor. A análise abaixo trata o projeto **como se fosse a operação de uma fintech
+> brasileira** sujeita à Lei 13.709/2018 (LGPD), que é o cenário do enunciado.
 
 ### 1. Inventário de dados pessoais
 
-| Coluna | Classificação LGPD | Usada no modelo? | Tratamento |
-|--------|-------------------|------------------|------------|
-| `ID` | Identificador direto | ❌ Não | Descartada na ingestão; substituída por chave técnica sem significado |
-| `SEX` | Dado pessoal com potencial discriminatório | ❌ Não | Fora das features; mantida só no conjunto de **auditoria de viés** |
-| `MARRIAGE` | Dado pessoal com potencial discriminatório | ❌ Não | Idem `SEX` |
-| `AGE` | Dado pessoal | 🟡 A decidir na Etapa 1 | Necessária ao contrato (≥ 18); uso como feature depende da auditoria de viés |
-| `EDUCATION` | Dado pessoal (proxy socioeconômico) | 🟡 A decidir na Etapa 1 | Decisão por ablação: removida se o custo em AUC for desprezível |
-| `LIMIT_BAL`, `PAY_*`, `BILL_AMT*`, `PAY_AMT*` | Dados financeiros pessoais | ✅ Sim | Necessários à finalidade (avaliação de risco) |
+Das 122 colunas originais, o pipeline ingere ~20. O recorte **já é** a primeira medida de
+minimização — ver [docs/DATASET.md](docs/DATASET.md#-recorte-de-colunas).
 
-Nenhuma coluna do dataset é **dado pessoal sensível** no sentido do art. 5º, II (origem
-racial, saúde, religião, biometria etc.). Sexo e estado civil não estão nessa lista, mas
-o **princípio da não discriminação** (art. 6º, IX) justifica tirá-los do modelo.
+| Coluna(s) | Classificação LGPD | Usada no modelo? | Tratamento |
+|-----------|-------------------|------------------|------------|
+| `SK_ID_CURR` | Dado pseudonimizado (art. 13, §4º) — continua sendo dado pessoal | ❌ Não | Só como chave de unicidade e rastreio |
+| `FLAG_MOBIL`, `FLAG_EMAIL`, `FLAG_PHONE`… | Dados de contato | ❌ Não | **Descartados na ingestão** (necessidade, art. 6º, III) |
+| `CODE_GENDER` | Dado pessoal com potencial discriminatório | ❌ Não | Fora das features; mantido só no conjunto de **auditoria de viés** |
+| `NAME_FAMILY_STATUS` | Dado pessoal com potencial discriminatório | ❌ Não | Idem `CODE_GENDER` |
+| `DAYS_BIRTH` (idade) | Dado pessoal | 🟡 A decidir na Etapa 1 | Necessária ao contrato (≥ 18); uso como feature depende da auditoria de viés |
+| `NAME_EDUCATION_TYPE` | Dado pessoal (proxy socioeconômico) | 🟡 A decidir na Etapa 1 | Ablação: removida se o custo em AUC for desprezível |
+| `CNT_CHILDREN`, `CNT_FAM_MEMBERS` | Dado pessoal (proxy de estado civil) | 🟡 A decidir na Etapa 1 | Ablação, pelo mesmo critério |
+| `REGION_RATING_CLIENT` | Dado de localização (proxy socioeconômico) | 🟡 A decidir na Etapa 1 | Auditado por grupo: risco de discriminação geográfica |
+| `EXT_SOURCE_2`, `EXT_SOURCE_3` | Scores de **bureaus externos** | ✅ Sim | Ver "Dependência de score de terceiros" abaixo |
+| Renda, crédito, parcela, emprego, moradia, ocupação | Dados financeiros e profissionais | ✅ Sim | Necessários à finalidade (avaliação de risco) |
+
+Nenhuma coluna do recorte é **dado pessoal sensível** no sentido do art. 5º, II (origem
+racial, saúde, religião, biometria etc.). Gênero e estado civil não estão nessa lista,
+mas o **princípio da não discriminação** (art. 6º, IX) justifica tirá-los do modelo.
+
+**Dependência de score de terceiros.** `EXT_SOURCE_*` são os preditores mais fortes do
+dataset, e são scores de fontes externas cuja composição não é conhecida. Isso tem dois
+custos de governança: o compartilhamento com bureaus precisa de base legal própria
+(proteção do crédito, art. 7º, X), e a explicação da decisão ao titular (art. 20, §1º)
+fica limitada — o modelo herda a opacidade do score de terceiro. A ablação da Etapa 1
+mede quanto do desempenho depende deles.
 
 ### 2. Base legal da decisão de crédito
 
@@ -240,10 +257,10 @@ crédito. Consequências para este projeto:
 
 | Princípio (art. 6º) | Como o pipeline aplica |
 |--------------------|------------------------|
-| Necessidade (minimização) | `ID`, `SEX` e `MARRIAGE` não chegam ao modelo; o contrato rejeita colunas fora do esquema |
+| Necessidade (minimização) | ~20 de 122 colunas ingeridas; dados de contato descartados; gênero e estado civil fora do modelo; o contrato rejeita colunas fora do esquema |
 | Finalidade | Dados de produção usados só para scoring e monitoramento; nenhum uso secundário |
 | Qualidade dos dados | O contrato de dados **é** a implementação deste princípio |
-| Segurança | Dados brutos fora do Git (`.gitignore`); relatórios versionados não contêm linhas individuais |
+| Segurança | Dados brutos fora do Git (`.gitignore`, e as regras da competição proíbem redistribuir); relatórios versionados não contêm linhas individuais |
 | Transparência | Model Card público; critérios de decisão documentados |
 | Não discriminação | Atributos sensíveis fora das features + métricas de viés por grupo |
 | Responsabilização | Logs estruturados e execuções no MLflow formam a trilha de auditoria (art. 37) |
@@ -266,8 +283,9 @@ crédito. Consequências para este projeto:
 ### 5. Mitigação de vieses
 
 > 🟡 **A preencher na Etapa 1** com números medidos: taxa de aprovação e recall por grupo
-> de `SEX`, `AGE` (faixas) e `EDUCATION`, razão de impacto desigual (regra dos 4/5) e o
-> resultado da ablação de `AGE`/`EDUCATION`.
+> de gênero, faixa de idade, escolaridade, estado civil e nota da região; razão de impacto
+> desigual (regra dos 4/5); e o resultado da ablação de idade, escolaridade, composição
+> familiar e `EXT_SOURCE_*`.
 
 ---
 

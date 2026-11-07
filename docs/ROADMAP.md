@@ -56,8 +56,8 @@ Conferência item a item do que o enunciado exige. **Atualizar ao fechar cada et
 | Exigência | Situação |
 |-----------|----------|
 | Classificação binária financeira | ✅ Inadimplência no mês seguinte |
-| Mínimo de 5.000 amostras | ✅ 30.000 (UCI Default of Credit Card Clients) |
-| Público, tabular, risco de crédito | ✅ UCI, sem necessidade de conta |
+| Mínimo de 5.000 amostras | ✅ ~307.500 (Home Credit Default Risk, tabela principal) |
+| Público, tabular, risco de crédito | ✅ Kaggle (exige conta + aceite das regras; fallback sintético) |
 
 ### Vídeo (≤ 5 min, STAR)
 
@@ -83,11 +83,12 @@ os problemas dos Tech Challenges anteriores.
 - [x] Documentar contexto, arquitetura, roadmap, dataset, contrato, drift e monitoramento
 - [x] Estruturar a seção de Governança LGPD no README
 - [x] Definir padrão de commits ([COMMITLINT.md](COMMITLINT.md))
-- [ ] **Confirmar o dataset** ([DATASET.md](DATASET.md)) — hoje 🟡 proposta
+- [x] **Escolher o dataset** ([DATASET.md](DATASET.md)) — Home Credit Default Risk
 - [ ] Confirmar as decisões 🟡 **Proposta** de [ARQUITETURA.md](ARQUITETURA.md)
 - [ ] Criar `pyproject.toml` com `uv`, ruff e grupos de dependência; commitar `uv.lock`
 - [ ] Criar `scripts/verify_setup.py`
-- [ ] Criar `scripts/download_data.py` (UCI, sem credencial) e o fallback sintético
+- [ ] Criar `scripts/download_data.py` (Kaggle; erro claro sem credencial ou sem aceite das regras)
+- [ ] Criar o gerador sintético com o mesmo esquema do recorte (CI e quem não tem conta)
 - [ ] Criar a estrutura de diretórios descrita no README
 - [ ] Criar o workflow de CI com lint e testes
 
@@ -118,11 +119,12 @@ os problemas dos Tech Challenges anteriores.
 - [ ] Baixar o dataset e registrar o SHA256 do arquivo bruto
 - [ ] EDA (`notebooks/01_eda.ipynb`): domínios reais, valores fora do dicionário, desbalanceamento
 - [ ] Split único e estratificado referência × pool de produção (seed 42)
-- [ ] Limpeza da referência (ex.: `EDUCATION` 0/5/6 → 4 "outros") — ver [DATASET.md](DATASET.md)
+- [ ] Confirmar o recorte de colunas e as ocorrências das anomalias conhecidas
+- [ ] Limpeza da referência (`XNA`, renda extrema, nulos em parcela; sentinela 365243 → flag) — ver [DATASET.md](DATASET.md#-problemas-conhecidos-e-tratamento)
 - [ ] Escrever o contrato Pandera com as regras de [DATA_CONTRACTS.md](DATA_CONTRACTS.md)
 - [ ] Validar a referência contra o contrato **antes** do treino
 - [ ] Treinar Dummy, LogisticRegression e XGBoost no mesmo split; promover pelo critério declarado
-- [ ] Auditoria de viés e ablação de `AGE` / `EDUCATION` → decisão registrada em ADR
+- [ ] Auditoria de viés e ablação (idade, escolaridade, composição familiar, `EXT_SOURCE_*`) → decisão registrada em ADR
 - [ ] Gerar lote corrompido e demonstrar o **bloqueio** (quarentena + exit code ≠ 0 + log)
 - [ ] Relatório de validação em `reports/validation/`
 - [ ] Preencher a primeira versão do [MODEL_CARD.md](MODEL_CARD.md)
@@ -235,7 +237,10 @@ Documentação completa de Governança e Causalidade no README + link do vídeo.
 | KS com n grande acusa drift em diferenças irrelevantes | 🟡 Médio | PSI como decisão, KS como confirmação + estatística D; M01 de controle mede falso positivo |
 | Stattest padrão do Evidently não é PSI/KS | 🟡 Médio | Configurar `stattest` por coluna explicitamente |
 | API do Evidently/Pandera mudou entre versões | 🟡 Médio | Versão travada no `uv.lock` e anotada no CLAUDE.md |
-| Fonte do dataset (UCI) fora do ar no CI | 🟡 Médio | Cache no CI + fallback sintético documentado |
+| Avaliador sem conta no Kaggle ou sem aceitar as regras | 🔴 Alto | Aviso antes do primeiro comando; erro claro no script; fallback sintético; evidências versionadas |
+| CI sem acesso ao dataset real | 🟡 Médio | CI roda sobre o sintético: prova o pipeline, não as métricas (declarado) |
+| Peso do arquivo (~160 MB) e da referência (~150 mil linhas) | 🟢 Baixo | Ler só as colunas do recorte; salvar em Parquet |
+| Modelo dependente de `EXT_SOURCE_*` (scores opacos de terceiros) | 🟡 Médio | Ablação mede a dependência; tratado na Governança (art. 20) |
 | Relatórios HTML vazarem linhas individuais | 🟡 Médio | Só agregados; revisão antes de commitar `reports/` |
 | Drift simulado parecer arbitrário | 🟡 Médio | Cada cenário tem narrativa econômica e mecanismo declarado em [DRIFT.md](DRIFT.md) |
 | Vídeo estourar 5 minutos | 🟡 Médio | Roteiro com tempos + ensaio cronometrado |

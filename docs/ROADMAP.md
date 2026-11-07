@@ -84,6 +84,7 @@ os problemas dos Tech Challenges anteriores.
 - [x] Estruturar a seção de Governança LGPD no README
 - [x] Definir padrão de commits ([COMMITLINT.md](COMMITLINT.md))
 - [x] **Escolher o dataset** ([DATASET.md](DATASET.md)) — Home Credit Default Risk
+- [ ] Copiar para o README o trecho exato dos termos de uso da competição (aba *Rules*, seção de dados)
 - [ ] Confirmar as decisões 🟡 **Proposta** de [ARQUITETURA.md](ARQUITETURA.md)
 - [ ] Criar `pyproject.toml` com `uv`, ruff e grupos de dependência; commitar `uv.lock`
 - [ ] Criar `scripts/verify_setup.py`

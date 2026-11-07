@@ -189,7 +189,7 @@ application_train.csv (~307.500 linhas, ~8% positivos)
 |------|-------|
 | Fonte | Kaggle — competição *Home Credit Default Risk* (Home Credit Group, 2018) |
 | Arquivo | `application_train.csv` |
-| Licença | Regras da competição — uso não comercial, **sem redistribuição** |
+| Termos de uso | Regras da competição — uso não comercial, **sem redistribuição** (🟡 citar o trecho exato da aba *Rules*; decisões em ADR 12) |
 | Anonimização | Feita pelo provedor; `SK_ID_CURR` é pseudônimo |
 | SHA256 de `application_train.csv` | `52e96b895b1112e1c853f670e58372719c8441c5ed1c57ac2f7fad559d784f5f` |
 | Baixado em | 2026-11-07, Kaggle CLI 2.2.5 |

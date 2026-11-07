@@ -118,6 +118,7 @@ detecção de drift seguinte. Ver [DATA_CONTRACTS.md](DATA_CONTRACTS.md#-comport
 | 09 | Dataset Home Credit Default Risk, só `application_train.csv`, ~20 colunas | ✅ Aceita | Cenário de concessão; renda e emprego; anomalias reais para o contrato; atributos para auditoria. Custo: login no Kaggle, mitigado com fallback sintético. Comparativo em [DATASET.md](DATASET.md#%EF%B8%8F-candidatos-avaliados) |
 | 10 | `uv run` como único runner documentado | ✅ Aceita | Lição do TC01: comandos que dependem de ferramenta não versionada falham |
 | 11 | Contrato valida colunas brutas; features derivadas depois | 🟡 Proposta | Regras de origem (sentinela, `XNA`) só são visíveis no dado bruto |
+| 12 | Dados nunca versionados nem compartilhados; acesso individual via Kaggle; só agregados publicados | ✅ Aceita | Termos de uso da competição (acesso condicionado ao aceite, sem redistribuição). Coerência com o tema de governança. Ver [README — Origem dos dados](../README.md#1-origem-dos-dados-e-termos-de-uso) |
 
 ---
 

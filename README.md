@@ -155,10 +155,22 @@ tc04-monitoramento-drift/
 | **Git** | — | Clonar o repositório | — |
 | **Conta no Kaggle** | — | Baixar o dataset (não versionado) | [Home Credit Default Risk](https://www.kaggle.com/competitions/home-credit-default-risk/data) |
 
-O dataset é o **Home Credit Default Risk**. O download exige conta no Kaggle **e** o
-aceite das regras da competição (sem isso a API retorna 403). Sem conta, haverá um gerador
-sintético com o mesmo esquema: ele valida o pipeline, mas não reproduz as métricas
-documentadas. Passo a passo em [docs/DATASET.md](docs/DATASET.md#-obtenção).
+> 🔐 **Acesso aos dados — leia antes de começar.** O dataset **Home Credit Default Risk**
+> não está neste repositório e não pode ser compartilhado entre pessoas: os termos de uso
+> da competição condicionam o acesso a uma conta no Kaggle com as regras aceitas. Cada
+> pessoa (integrante do grupo ou avaliador) baixa com **a própria conta e o próprio token**.
+>
+> 1. Criar conta no Kaggle e aceitar as regras em [Home Credit Default Risk → Rules](https://www.kaggle.com/competitions/home-credit-default-risk/rules)
+>    (sem o aceite, a API retorna 403)
+> 2. Gerar um token em *Settings → API* e defini-lo na variável de ambiente `KAGGLE_API_TOKEN`
+>    — nunca em arquivo dentro do projeto
+> 3. Rodar o script de download (⬜ Etapa 0), que confere o SHA256 do arquivo
+>
+> **Sem conta?** O projeto gera dados sintéticos com o mesmo esquema: validam o pipeline,
+> mas não reproduzem as métricas. Os resultados do dataset real estão versionados em
+> `reports/` e podem ser lidos sem executar nada. Motivo e detalhes em
+> [Governança — Origem dos dados](#1-origem-dos-dados-e-termos-de-uso) e
+> [docs/DATASET.md](docs/DATASET.md#-obtenção).
 
 ### Padrão de commits (opcional, só para contribuir)
 
@@ -208,7 +220,32 @@ validar mensagens de commit. Ver [docs/COMMITLINT.md](docs/COMMITLINT.md).
 > provedor. A análise abaixo trata o projeto **como se fosse a operação de uma fintech
 > brasileira** sujeita à Lei 13.709/2018 (LGPD), que é o cenário do enunciado.
 
-### 1. Inventário de dados pessoais
+### 1. Origem dos dados e termos de uso
+
+Antes de governar os dados dos clientes da fintech fictícia, o projeto precisa respeitar
+as condições sob as quais **nós** obtivemos os dados. É o mesmo princípio da finalidade
+(art. 6º, I) aplicado ao próprio grupo.
+
+| Item | Situação |
+|------|----------|
+| Fonte | Competição pública *Home Credit Default Risk* no Kaggle (Home Credit Group, 2018) |
+| Anonimização | Feita pelo provedor; `SK_ID_CURR` é um pseudônimo, sem nome, documento ou contato |
+| Condição de acesso | Conta no Kaggle **com as regras da competição aceitas**, individualmente |
+| Termos de uso | Uso não comercial, sem redistribuição dos dados a terceiros — 🟡 citar o trecho exato da aba *Rules* |
+| Finalidade neste projeto | Acadêmica: demonstrar sustentação de modelos (pós-graduação FIAP) |
+
+**Decisões que decorrem dos termos (ADR 12):**
+
+| Decisão | Como é aplicada |
+|---------|-----------------|
+| Nenhum dado em nível de linha é versionado | `data/` inteiro no `.gitignore`: bruto, referência, lotes simulados e quarentena — os lotes **derivam** do dado original, então também não podem ser publicados |
+| Nenhum dado é repassado por outro canal | Sem Drive, S3 ou mensagem entre integrantes; cada pessoa baixa com a própria conta |
+| Credenciais são pessoais | Token do Kaggle só em variável de ambiente; nunca em arquivo do projeto, nunca compartilhado |
+| Mesmo arquivo para todos | SHA256 registrado em [docs/DATASET.md](docs/DATASET.md#-proveniência) e conferido pelo script de download |
+| Só agregados são publicados | `reports/`, Model Card e métricas trazem distribuições e estatísticas, nunca linhas |
+| Alternativa sem conta | Gerador sintético a partir de parâmetros declarados no código, sem copiar linhas do dataset |
+
+### 2. Inventário de dados pessoais
 
 Das 122 colunas originais, o pipeline ingere ~20. O recorte **já é** a primeira medida de
 minimização — ver [docs/DATASET.md](docs/DATASET.md#-recorte-de-colunas).
@@ -237,7 +274,7 @@ custos de governança: o compartilhamento com bureaus precisa de base legal pró
 fica limitada — o modelo herda a opacidade do score de terceiro. A ablação da Etapa 1
 mede quanto do desempenho depende deles.
 
-### 2. Base legal da decisão de crédito
+### 3. Base legal da decisão de crédito
 
 | Tratamento | Base legal | Fundamento |
 |-----------|-----------|-----------|
@@ -253,7 +290,7 @@ crédito. Consequências para este projeto:
 - O Model Card documenta os critérios de forma compreensível (art. 20, §1º)
 - Cada predição é rastreável à versão do modelo e ao lote que a gerou (logs + MLflow)
 
-### 3. Privacy by Design e by Default no pipeline
+### 4. Privacy by Design e by Default no pipeline
 
 | Princípio (art. 6º) | Como o pipeline aplica |
 |--------------------|------------------------|
@@ -269,7 +306,7 @@ crédito. Consequências para este projeto:
 > trazem distribuições agregadas por feature; o pipeline **não** versiona amostras de
 > linhas. Isso é verificado antes de cada commit em `reports/`.
 
-### 4. Plano de retenção
+### 5. Plano de retenção
 
 | Dado | Retenção | Fundamento | Destino ao fim |
 |------|----------|-----------|----------------|
@@ -280,7 +317,7 @@ crédito. Consequências para este projeto:
 | Lotes em quarentena | 30 dias 🟡 *proposta* | Investigação da falha | Eliminação |
 | Logs e métricas de monitoramento | Sem dado pessoal; retenção livre | Agregados, não identificam titular | — |
 
-### 5. Mitigação de vieses
+### 6. Mitigação de vieses
 
 > 🟡 **A preencher na Etapa 1** com números medidos: taxa de aprovação e recall por grupo
 > de gênero, faixa de idade, escolaridade, estado civil e nota da região; razão de impacto

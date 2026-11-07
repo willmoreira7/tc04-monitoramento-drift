@@ -109,7 +109,7 @@ atribuível à simulação.
 ```
 tc04-monitoramento-drift/
 ├── configs/
-│   ├── pipeline.yaml           # ✅ Seed, fonte e SHA256 do dataset (limiares nas próximas etapas)
+│   ├── pipeline.yaml           # ✅ Seed, dataset, limpeza e split (limiares nas próximas etapas)
 │   └── drift_scenarios.yaml    # ⬜ Perturbações de cada lote simulado (Etapa 2)
 ├── data/                       # Não versionado — gerado pelos scripts
 │   ├── raw/                    #   dataset original (e o sintético, se gerado)
@@ -118,22 +118,23 @@ tc04-monitoramento-drift/
 │   └── quarantine/             #   lotes rejeitados pelo contrato
 ├── docs/                       # ✅ Documentação do projeto
 ├── models/                     # Não versionado — artefato do modelo baseline
-├── notebooks/                  # ⬜ EDA, baseline e análise de drift
+├── notebooks/                  # ✅ 01_eda · ⬜ baseline e análise de drift
 ├── reports/                    # ⬜ VERSIONADO — evidências HTML do monitoramento
 │   ├── validation/             #   resultado dos contratos por lote
 │   ├── drift/                  #   relatórios Evidently por lote
 │   └── monitoring/             #   dashboard consolidado
 ├── scripts/
 │   ├── download_data.py        # ✅ Dataset real (SHA256) ou sintético
+│   ├── prepare_data.py         # ✅ Limpeza e split referência × produção
 │   └── verify_setup.py         # ✅ Diz se o ambiente está pronto e o que falta
 ├── src/
 │   ├── config.py               # ✅ Caminhos, seed e configuração
-│   ├── data/                   # ✅ Esquema, download e sintético · ⬜ loader e split (Etapa 1)
+│   ├── data/                   # ✅ Esquema, download, sintético, carga, limpeza e split
 │   ├── contracts/              # ⬜ Schemas Pandera e validação (Etapa 1)
 │   ├── models/                 # ⬜ Treino e predição do baseline (Etapa 1)
 │   ├── drift/                  # ⬜ Simulação e detecção (Etapa 2)
 │   ├── monitoring/             # ✅ Logging (structlog) · ⬜ métricas e alertas (Etapa 3)
-│   └── pipeline/               # ⬜ Orquestração das etapas
+│   └── pipeline/               # ✅ Preparo dos dados · ⬜ demais estágios
 ├── tests/                      # ✅ pytest, sem dependência de rede
 └── .github/workflows/          # ✅ CI: lint → testes · dataset real · commitlint
 ```
@@ -195,12 +196,41 @@ pipeline, mas **não** reproduz as métricas documentadas:
 uv run python scripts/download_data.py --synthetic
 ```
 
-### 2. Testes e qualidade de código
+### 2. Limpeza e separação referência × produção
+
+```bash
+uv run python scripts/prepare_data.py              # com o sintético: --synthetic
+```
+
+Aplica a limpeza declarada em [`configs/pipeline.yaml`](configs/pipeline.yaml) e faz o
+split **uma única vez**, estratificado e com seed 42:
+
+| Conjunto | Arquivo | Linhas | Inadimplência |
+|----------|---------|--------|---------------|
+| Treino | `data/reference/train.parquet` | 10.487 | 22,12% |
+| Validação | `data/reference/validation.parquet` | 2.247 | 22,12% |
+| Teste | `data/reference/test.parquet` | 2.248 | 22,15% |
+| Pool de produção | `data/production/pool.parquet` | 14.983 | 22,13% |
+
+Contagens, taxas e o SHA256 de origem ficam em `data/reference/split_metadata.json`. As
+decisões de limpeza estão justificadas no notebook de EDA.
+
+### 3. Análise exploratória
+
+O notebook [`notebooks/01_eda.ipynb`](notebooks/01_eda.ipynb) está versionado **com as
+saídas**: dá para lê-lo direto no GitHub, sem executar nada. Para reexecutar:
+
+```bash
+uv run jupyter lab notebooks/
+```
+
+### 4. Testes e qualidade de código
 
 ```bash
 uv run pytest
 uv run ruff check .
 uv run ruff format --check .
+uv run nbqa ruff notebooks/
 ```
 
 ### Padrão de commits (opcional, só para contribuir)

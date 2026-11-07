@@ -91,6 +91,7 @@ a decisão de concessão, e servir de objeto de estudo para a camada de monitora
 
 - Dados de 2005, Taiwan, um único produto (cartão de crédito)
 - Sem renda declarada; capacidade de pagamento é inferida por fatura e pagamentos
+- **Ruído de rótulo:** 21 grupos de clientes com as 23 features idênticas e rótulos opostos ([01_eda.ipynb](../notebooks/01_eda.ipynb), seção 3) — um piso de erro que nenhum modelo elimina
 - Rótulos chegam com atraso em produção real; na simulação são revelados por lote
 - Drift simulado: mecanismos plausíveis, intensidades escolhidas
 

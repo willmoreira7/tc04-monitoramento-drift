@@ -29,7 +29,7 @@ corresponde a uma falha plausível de origem.
 | C2 | Sem nulos | todas | Falha de extração, join quebrado |
 | C3 | Sem duplicatas pela chave do cliente | chave técnica | Reprocessamento ou envio em dobro |
 | C4 | `AGE` entre 18 e 100 | `AGE` | Menor de idade não pode contratar crédito; erro de digitação |
-| C5 | `LIMIT_BAL` > 0 e ≤ teto plausível | `LIMIT_BAL` | Limite zerado/negativo ou erro de escala (centavos × reais) |
+| C5 | `LIMIT_BAL` > 0 e ≤ 1.000.000 (máximo observado; só 1 cliente acima de 800 mil) | `LIMIT_BAL` | Limite zerado/negativo ou erro de escala (centavos × reais) |
 | C6 | Códigos categóricos dentro do dicionário | `EDUCATION` ∈ {1,2,3,4}, `SEX` ∈ {1,2}, `MARRIAGE` ∈ {1,2,3} | Código novo não mapeado na origem |
 | C7 | Status de pagamento no domínio | `PAY_*` ∈ [−2, 9] | Codificação trocada |
 | C8 | Valores pagos não negativos | `PAY_AMT*` ≥ 0 | Sinal invertido no ETL |

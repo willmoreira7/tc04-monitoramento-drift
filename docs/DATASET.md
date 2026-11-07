@@ -75,7 +75,7 @@ finalidade permitida contrariaria os mesmos termos.
 2. **Reprodutibilidade sem atrito.** Download direto da UCI, sem conta e sem token. O
    avaliador e o CI baixam com um comando — a principal lição do TC01.
 3. **Tamanho adequado.** 30.000 linhas comportam um split 50/50 e seis lotes mensais de
-   2.500 linhas.
+   2.400 linhas.
 4. **Governança rica.** Traz sexo, escolaridade, estado civil e idade — a própria UCI os
    marca como atributos demográficos. Há diferença real de inadimplência entre sexos
    (24,2% × 20,8%), o que dá substância à auditoria de viés.
@@ -153,9 +153,9 @@ para os nomes do dicionário da UCI:
 UCI (30.000 linhas, 22,12% inadimplentes)
  │  limpeza declarada
  │  split estratificado pelo target, seed 42, feito UMA vez
- ├── referência ........ 15.000 → treino 70% · validação 15% · teste 15%
- └── pool de produção .. 15.000 → 6 lotes mensais de 2.500 (M01…M06)
-                                 + 1 lote corrompido (demonstração do contrato)
+ ├── referência ........ 14.982 → treino 70% (10.487) · validação 15% (2.247) · teste 15% (2.248)
+ └── pool de produção .. 14.983 → 6 lotes mensais de 2.400 (M01…M06) = 14.400
+                                 + 1 lote corrompido de 500 (demonstração do contrato)
 ```
 
 | Conjunto | Diretório | Quem usa | Pode sofrer perturbação? |

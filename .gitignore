@@ -1,0 +1,43 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+.env
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Dados (nao versionados - gerados pelos scripts)
+/data/**
+!/data/**/
+!/data/**/.gitkeep
+
+# Artefatos de modelo
+/models/*
+!/models/.gitkeep
+
+# Rastreamento e logs locais
+mlflow.db
+mlruns/
+mlartifacts/
+/logs/*
+!/logs/.gitkeep
+
+# reports/ E VERSIONADO de proposito: evidencia exigida pelo enunciado
+
+# Node (apenas ferramental de commitlint)
+node_modules/
+.husky/_/
+
+# Configuracao local do Claude Code (regras em .claude/rules sao versionadas)
+.claude/settings.local.json

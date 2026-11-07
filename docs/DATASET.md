@@ -1,11 +1,11 @@
 # 📦 Dataset
 
-> Escolha do dataset, recorte de colunas, problemas conhecidos e a separação entre
-> referência e produção.
+> Escolha do dataset, esquema, problemas conhecidos e a separação entre referência e
+> produção.
 
-> ✅ **Decisão:** Home Credit Default Risk — apenas a tabela principal
-> (`application_train.csv`), recortada. Os números de ocorrência abaixo foram **conferidos
-> no arquivo baixado em 2026-11-07** (SHA256 na seção de Proveniência).
+> ✅ **Decisão:** UCI *Default of Credit Card Clients* (id 350), licença **CC BY 4.0**.
+> Números conferidos no arquivo baixado em 2026-11-07 (SHA256 em
+> [Proveniência](#-proveniência)).
 
 ---
 
@@ -15,143 +15,147 @@
 - **Pelo menos 5.000 amostras**
 - Público e tabular, onde a degradação econômica faça sentido prático
 
+E uma exigência que o enunciado não escreve, mas o tema impõe: **o grupo precisa ter o
+direito de usar os dados para esta finalidade**. Um projeto avaliado em governança não
+pode começar violando os termos de uso do próprio dataset.
+
 ---
 
 ## ⚖️ Candidatos avaliados
 
-| Dataset | Linhas | Prós | Contras | Veredito |
-|---------|--------|------|---------|----------|
-| German Credit | 1.000 | Clássico, atributos para viés | **Abaixo do mínimo de 5.000** | ❌ Desqualificado |
-| Default of Credit Card Clients (UCI, Taiwan) | 30.000 | Download sem conta; `SEX`/`AGE`/`MARRIAGE` | Sem renda nem emprego; scoring de comportamento, não de concessão; `BILL_AMT*` redundantes; pouca sujeira real | 🟡 Plano B |
-| Credit Risk Dataset (Kaggle) | ~32.500 | Renda, juros, nulos e outliers reais | **Procedência desconhecida**; `loan_grade` quase vaza o target; só idade para viés | ❌ |
-| Give Me Some Credit (Kaggle) | 150.000 | Renda, muita sujeira real | ~6,7% de positivos: métricas por lote ruidosas; ~20% de renda nula | ❌ |
-| **Home Credit Default Risk (Kaggle)** | **~307.500** | Concessão real; renda, emprego, idade, gênero, família; anomalias famosas | 122 colunas; arquivo pesado; login + aceite de regras | ✅ **Escolhido** |
-| Lending Club | ~2,2 milhões | Drift temporal real | Enorme; dezenas de colunas com vazamento pós-concessão | ❌ |
-
-### Por que Home Credit
-
-1. **É o problema do enunciado.** Concessão de crédito a pessoas com pouco histórico
-   bancário — o cenário de uma fintech. O Taiwan é scoring de comportamento de quem já é
-   cliente de cartão.
-2. **Renda e emprego existem.** `AMT_INCOME_TOTAL`, `DAYS_EMPLOYED` e `NAME_INCOME_TYPE`
-   tornam literais os exemplos do enunciado ("limites de renda", "taxa de desemprego",
-   "inflação").
-3. **Anomalias reais para o contrato.** `DAYS_EMPLOYED = 365243` (~1.000 anos de emprego),
-   `CODE_GENDER = 'XNA'`, renda de ~117 milhões, nulos em `AMT_ANNUITY`. O contrato não
-   precisa de defeitos inventados para mostrar serviço.
-4. **Governança substancial.** Gênero, estado civil, idade, filhos, ocupação, região e
-   **scores de bureaus externos** (`EXT_SOURCE_*`) — material real para minimização,
-   não discriminação e explicabilidade (LGPD art. 20).
-5. **Volume para lotes grandes.** Com ~8% de positivos, lotes de 10.000 linhas trazem ~800
-   inadimplentes — o suficiente para medir AUC por lote sem ruído de amostragem.
-
-### O custo da escolha (e como é mitigado)
-
-| Custo | Mitigação |
-|-------|-----------|
-| Download exige conta no Kaggle **e** aceite das regras da competição | Passo a passo no README; `scripts/download_data.py` com mensagem clara se faltar credencial; **fallback sintético** com o mesmo esquema (modelo do TC03, que tirou 90 com dataset do Kaggle) |
-| Regras da competição proíbem redistribuir os dados | Dados nunca versionados; `reports/` só com agregados |
-| 122 colunas | Recorte para ~20 colunas da tabela principal (abaixo); tabelas relacionais (`bureau`, `previous_application` etc.) **fora do escopo** |
-| ~8% de positivos | Split estratificado; métricas AUC/KS/recall, nunca acurácia (o Dummy acerta ~92%) |
-| Moeda e país não declarados pelo provedor | Valores tratados como unidade monetária genérica; declarado no Model Card |
+| Dataset | Linhas | Termos de uso permitem este projeto? | Outros prós e contras | Veredito |
+|---------|--------|-------------------------------------|----------------------|----------|
+| German Credit | 1.000 | ✅ | **Abaixo do mínimo de 5.000** | ❌ Desqualificado |
+| **Default of Credit Card Clients (UCI 350)** | **30.000** | ✅ **CC BY 4.0**: uso, adaptação e redistribuição com atribuição | Sem renda; scoring de comportamento de cartão | ✅ **Escolhido** |
+| Home Credit Default Risk (Kaggle) | 307.511 | ❌ **Só para os fins da competição; proibido manipular os dados** | Mais rico (renda, emprego), mas inviável pelos termos | ❌ [Ver abaixo](#-por-que-não-o-home-credit) |
+| Give Me Some Credit (Kaggle) | 150.000 | ⚠️ Regras de competição do Kaggle — mesmo risco do Home Credit | ~6,7% de positivos | ❌ |
+| Credit Risk Dataset (Kaggle) | ~32.500 | ⚠️ Procedência e licença desconhecidas | `loan_grade` quase vaza o target | ❌ |
+| Lending Club | ~2,2 milhões | ⚠️ Cópias não oficiais; a Lending Club não distribui mais | Enorme; vazamento pós-concessão | ❌ |
 
 ---
 
-## 📋 Recorte de colunas
+## 🚫 Por que não o Home Credit
 
-Fonte: [Kaggle — Home Credit Default Risk](https://www.kaggle.com/competitions/home-credit-default-risk/data),
-arquivo `application_train.csv` (307.511 linhas × 122 colunas; `TARGET` = 1 indica
-dificuldade de pagamento, ~8%).
+O Home Credit Default Risk foi a primeira escolha do grupo e é um dos datasets sugeridos
+no próprio enunciado. Chegamos a baixá-lo e conferir as anomalias. Ao ler as regras da
+competição — que todo usuário aceita antes do download — encontramos duas cláusulas
+incompatíveis com este projeto:
 
-### Chave e target
+> **Regras específicas da competição** (substituem a regra geral 7.A):
+> *"After your acceptance of these Rules, you may access and use the Competition Data
+> **only for the purposes of the Competition**."*
 
-| Coluna | Papel |
-|--------|-------|
-| `SK_ID_CURR` | Chave do pedido (pseudônimo). Usada só para unicidade e rastreio; **nunca** é feature |
-| `TARGET` | 1 = cliente com dificuldade de pagamento |
+> **Regra geral 7.B — Data Security:**
+> *"You agree **not to manipulate the data** and not to use it for any other purpose other
+> than to participate in the Competition."*
+> *"You agree not to transmit, duplicate, publish, redistribute or otherwise provide or
+> make available the Competition Data to any party not participating in the Competition."*
 
-### Features candidatas
+| Cláusula | Conflito com o projeto |
+|----------|------------------------|
+| Uso só para os fins da competição | O projeto é um trabalho acadêmico. A permissão genérica para *"academic research and education"* (regra 7.A) foi **substituída** pela regra específica |
+| Proibido manipular os dados | O núcleo da Etapa 2 é **alterar a distribuição** dos dados para simular drift |
+| Proibido disponibilizar a não participantes | O professor e parte do grupo não aceitaram as regras; nenhum lote derivado poderia ser mostrado |
 
-| Coluna | Tipo | Significado | Observação |
-|--------|------|-------------|------------|
-| `NAME_CONTRACT_TYPE` | cat | Cash loans / Revolving loans | |
-| `AMT_INCOME_TOTAL` | float | Renda declarada | Outlier extremo conhecido |
-| `AMT_CREDIT` | float | Valor do crédito | |
-| `AMT_ANNUITY` | float | Valor da parcela | Poucos nulos |
-| `AMT_GOODS_PRICE` | float | Preço do bem financiado | Poucos nulos |
-| `NAME_INCOME_TYPE` | cat | Working, Pensioner, Unemployed… | Base da narrativa de desemprego |
-| `DAYS_EMPLOYED` | int | Dias de emprego (negativo) | **Sentinela 365243** |
-| `DAYS_BIRTH` | int | Idade em dias (negativo) | 🟡 Uso decidido por ablação (viés) |
-| `NAME_EDUCATION_TYPE` | cat | Escolaridade | 🟡 Uso decidido por ablação (viés) |
-| `NAME_HOUSING_TYPE` | cat | Situação de moradia | |
-| `FLAG_OWN_CAR`, `FLAG_OWN_REALTY` | Y/N | Possui carro / imóvel | |
-| `CNT_CHILDREN`, `CNT_FAM_MEMBERS` | int | Filhos / membros da família | 🟡 Proxy de estado civil — ablação |
-| `OCCUPATION_TYPE` | cat | Ocupação | ~31% nulo (nulo é informativo) |
-| `REGION_RATING_CLIENT` | ord | Nota da região (1–3) | 🟡 Proxy socioeconômico — auditar |
-| `EXT_SOURCE_2`, `EXT_SOURCE_3` | float [0,1] | Scores de fontes externas | Preditores mais fortes; `EXT_SOURCE_3` ~20% nulo |
+**Decisão:** trocar de dataset e **eliminar a cópia local** do Home Credit. Mantê-la sem
+finalidade permitida contrariaria os mesmos termos.
 
-### Features derivadas (no pipeline, não no contrato)
-
-| Feature | Fórmula | Por quê |
-|---------|---------|---------|
-| `AGE_YEARS` | `-DAYS_BIRTH / 365.25` | Legibilidade e regra de idade |
-| `YEARS_EMPLOYED` | `-DAYS_EMPLOYED / 365.25`; sentinela → nulo | Remove o 365243 sem perder a informação |
-| `EMPLOYED_ANOMALY` | `DAYS_EMPLOYED == 365243` | O sentinela carrega sinal (aposentados) |
-| `CREDIT_INCOME_RATIO` | `AMT_CREDIT / AMT_INCOME_TOTAL` | Alavancagem |
-| `ANNUITY_INCOME_RATIO` | `AMT_ANNUITY / AMT_INCOME_TOTAL` | **Comprometimento de renda** — onde a inflação aparece |
-
-### Apenas para auditoria de viés (nunca features)
-
-| Coluna | Motivo |
-|--------|--------|
-| `CODE_GENDER` | Não discriminação (LGPD art. 6º, IX) |
-| `NAME_FAMILY_STATUS` | Idem |
-
-### Descartadas na ingestão
-
-| Grupo | Motivo |
-|-------|--------|
-| `FLAG_MOBIL`, `FLAG_EMAIL`, `FLAG_PHONE`, `FLAG_WORK_PHONE`… | Dados de contato: sem necessidade para a finalidade (art. 6º, III) |
-| ~47 colunas de características do imóvel (`*_AVG`, `*_MODE`, `*_MEDI`) | Maioria nula; fora do foco |
-| `FLAG_DOCUMENT_*` | Baixo sinal; fora do foco |
-| `EXT_SOURCE_1` | ~56% nulo |
-| `AMT_REQ_CREDIT_BUREAU_*`, `OBS_*`, `DEF_*` | Fora do recorte |
-
-> ℹ️ O recorte final pode mudar na EDA. Toda mudança é registrada aqui e em
-> `configs/pipeline.yaml`, nunca só no código.
+> 💡 **Lição de governança.** Ser "público" não é o mesmo que ser de uso livre. O dataset
+> estava a um clique de distância, era sugerido pelo enunciado e é amplamente usado em
+> cursos — e mesmo assim os termos não cobriam este uso. A verificação da licença passou a
+> ser um passo obrigatório da escolha de dados (ADR 12 em [ARQUITETURA.md](ARQUITETURA.md)).
 
 ---
 
-## 🧹 Problemas conhecidos e tratamento
+## ✅ Por que o UCI Default of Credit Card Clients
+
+1. **Licença limpa.** CC BY 4.0 permite usar, **adaptar** (simular drift) e
+   **redistribuir**, com uma única obrigação: atribuição. Não há conflito com nenhuma
+   etapa do projeto.
+2. **Reprodutibilidade sem atrito.** Download direto da UCI, sem conta e sem token. O
+   avaliador e o CI baixam com um comando — a principal lição do TC01.
+3. **Tamanho adequado.** 30.000 linhas comportam um split 50/50 e seis lotes mensais de
+   2.500 linhas.
+4. **Governança rica.** Traz sexo, escolaridade, estado civil e idade — a própria UCI os
+   marca como atributos demográficos. Há diferença real de inadimplência entre sexos
+   (24,2% × 20,8%), o que dá substância à auditoria de viés.
+5. **Problemas de qualidade reais.** Códigos fora do dicionário em `EDUCATION` e
+   `MARRIAGE`, e 35 linhas com conteúdo idêntico sob IDs diferentes.
+
+### O custo da escolha
+
+| Custo | Como lidamos |
+|-------|--------------|
+| **Não há renda nem emprego.** O enunciado cita "limites de renda" e "desemprego" como **exemplos** | Os equivalentes são `LIMIT_BAL` (limite concedido), faturas e pagamentos. A capacidade de pagamento é inferida, e isso é declarado no Model Card |
+| É scoring de **comportamento** (cliente de cartão), não de concessão a novos proponentes | O monitoramento de carteira é exatamente o caso de uso de drift em crédito; a narrativa do README trata a revisão de limites e a manutenção do crédito |
+| Dados de 2005, em dólar taiwanês (NT$) | Irrelevante para o objetivo (ciclo de sustentação); declarado no Model Card |
+| `BILL_AMT1…6` muito correlacionadas (0,95 entre meses vizinhos) | Drift numa delas aparece em todas: o relatório agrupa as séries e a análise causal considera isso |
+
+---
+
+## 📋 Esquema
+
+Fonte: [UCI Machine Learning Repository — id 350](https://archive.ics.uci.edu/dataset/350/default+of+credit+card+clients).
+Clientes de cartão de crédito em Taiwan, histórico de abril a setembro de 2005.
+
+O arquivo oficial `data.csv` usa nomes genéricos (`X1`…`X23`, `Y`). O loader renomeia
+para os nomes do dicionário da UCI:
+
+| Coluna original | Nome no projeto | Tipo | Domínio documentado | Papel |
+|-----------------|-----------------|------|---------------------|-------|
+| `ID` | `ID` | int | Único | Chave — **nunca** é feature |
+| `X1` | `LIMIT_BAL` | int | > 0 (NT$) | Feature |
+| `X2` | `SEX` | cat | 1 = masculino, 2 = feminino | Auditoria de viés — **fora do modelo** |
+| `X3` | `EDUCATION` | cat | 1 pós, 2 universidade, 3 ensino médio, 4 outros | A decidir (ablação) |
+| `X4` | `MARRIAGE` | cat | 1 casado, 2 solteiro, 3 outros | Auditoria de viés — **fora do modelo** |
+| `X5` | `AGE` | int | anos | A decidir (ablação); contrato exige ≥ 18 |
+| `X6`–`X11` | `PAY_0`, `PAY_2` … `PAY_6` | int | −1 pago em dia; 1…9 meses de atraso | Feature |
+| `X12`–`X17` | `BILL_AMT1` … `BILL_AMT6` | int | Valor da fatura (pode ser negativo: crédito a favor) | Feature |
+| `X18`–`X23` | `PAY_AMT1` … `PAY_AMT6` | int | ≥ 0, valor pago | Feature |
+| `Y` | `default` | binário | 1 = inadimplente no mês seguinte | **Target** |
+
+> ℹ️ Não existe `PAY_1` — a sequência original pula de `PAY_0` para `PAY_2`. Manter os
+> nomes do dicionário evita confusão com a documentação da fonte.
+
+### Perfil conferido
+
+| Item | Valor |
+|------|-------|
+| Linhas × colunas | 30.000 × 25 |
+| Inadimplência | 22,12% |
+| Nulos | 0 |
+| `AGE` | 21 a 79 anos |
+| `LIMIT_BAL` | 10.000 a 1.000.000 |
+| `PAY_*` | −2 a 8 |
+| `BILL_AMT*` | −339.603 a 1.664.089 (1.930 clientes com alguma fatura negativa) |
+| `PAY_AMT*` | 0 a 1.684.259 |
+
+### Problemas conhecidos
 
 | Problema | Ocorrência | Na referência (limpeza) | Em produção (contrato) |
-|----------|---------------|-------------------------|------------------------|
-| `DAYS_EMPLOYED = 365243` | 55.374 (18,0%): 55.352 Pensioner + 22 Unemployed — **nenhum outro tipo de renda** | Vira `YEARS_EMPLOYED` nulo + `EMPLOYED_ANOMALY = 1` | Aceito **só** com `NAME_INCOME_TYPE` ∈ {Pensioner, Unemployed}; positivo em outro caso bloqueia |
-| `CODE_GENDER = 'XNA'` | 4 linhas | Removidas | Bloqueia |
-| `NAME_FAMILY_STATUS = 'Unknown'` | 2 linhas | Removidas | Bloqueia |
-| Renda extrema | 117 milhões (1 linha); seguintes: 18 mi, 13,5 mi, 9 mi — p99,9 = 900 mil | Remover acima do teto (🟡 teto a definir na EDA) | Acima do teto bloqueia |
-| `AMT_ANNUITY` nulo | 12 linhas | Removidas | Bloqueia |
-| `AMT_GOODS_PRICE` nulo | 278 linhas | Removidas | Bloqueia |
-| `OCCUPATION_TYPE` nulo | 96.391 (31,3%) | Mantido como categoria "Unknown" | Permitido; fração monitorada (aviso) |
-| `EXT_SOURCE_3` nulo | 60.965 (19,8%) | Imputado no pipeline do modelo | Permitido; fração monitorada (aviso) |
-| `EXT_SOURCE_2` nulo | 660 (0,2%) | Imputado no pipeline do modelo | Permitido |
-| `CNT_FAM_MEMBERS` nulo | 2 linhas | Removidas | Bloqueia |
+|----------|-----------|-------------------------|------------------------|
+| `EDUCATION` = 0, 5, 6 | 14 + 280 + 51 = 345 | Agrupar em 4 ("outros") | Bloqueia |
+| `MARRIAGE` = 0 | 54 | Agrupar em 3 ("outros") | Bloqueia |
+| Linhas idênticas com IDs diferentes | 35 | 🟡 Investigar na EDA (cadastro duplicado ou coincidência de perfis com valores zerados) | Aviso |
+| `PAY_*` = −2 e 0 | Frequentes | Não documentados na fonte; interpretados como "sem consumo" e "crédito rotativo" | Aceitos no domínio [−2, 9] |
+| `BILL_AMT*` negativos | 1.930 clientes | Crédito a favor; aceitos | Aceitos |
+| Desbalanceamento | 22,12% | Split estratificado | — |
 
-> 🔴 A limpeza da referência é código, aplicada **antes** do split, e cada remoção é
-> contada e logada. O contrato de produção é mais estrito que a limpeza: lá, um valor
-> impossível é sinal de problema na origem, não algo a corrigir em silêncio.
+> 🔴 A limpeza da referência é código, aplicada **antes** do split, e cada alteração é
+> contada e logada. O contrato de produção é mais estrito que a limpeza: lá, código fora do
+> domínio é sinal de problema na origem, não algo a corrigir em silêncio.
 
 ---
 
 ## ✂️ Separação Referência × Produção
 
 ```
-application_train.csv (~307.500 linhas, ~8% positivos)
- │  limpeza (remoções declaradas acima)
- │  split estratificado pelo TARGET, seed 42, feito UMA vez
- ├── referência ........ 50% → treino 70% · validação 15% · teste 15%
- └── pool de produção .. 50% → 6 lotes mensais de 10.000 (M01…M06)
-                               + 1 lote corrompido (demonstração do contrato)
+UCI (30.000 linhas, 22,12% inadimplentes)
+ │  limpeza declarada
+ │  split estratificado pelo target, seed 42, feito UMA vez
+ ├── referência ........ 15.000 → treino 70% · validação 15% · teste 15%
+ └── pool de produção .. 15.000 → 6 lotes mensais de 2.500 (M01…M06)
+                                 + 1 lote corrompido (demonstração do contrato)
 ```
 
 | Conjunto | Diretório | Quem usa | Pode sofrer perturbação? |
@@ -162,12 +166,9 @@ application_train.csv (~307.500 linhas, ~8% positivos)
 
 **Garantias (testadas):**
 
-- Nenhum `SK_ID_CURR` do pool de produção aparece na referência
-- A taxa de positivos dos dois lados difere menos de 0,5 p.p. antes da simulação
+- Nenhum `ID` do pool de produção aparece na referência
+- A taxa de inadimplência dos dois lados difere menos de 1 p.p. antes da simulação
 - O lote M01 (controle, sem perturbação) não acusa drift
-
-> ℹ️ `application_test.csv` **não é usado**: não tem `TARGET`, então não serve nem para
-> treino nem para medir concept drift.
 
 ---
 
@@ -175,11 +176,13 @@ application_train.csv (~307.500 linhas, ~8% positivos)
 
 | Passo | Detalhe |
 |-------|---------|
-| 1. Conta | Criar conta no Kaggle |
-| 2. Regras | Aceitar as regras em *Home Credit Default Risk → Rules* (sem isso o download retorna 403) |
-| 3. Credencial | Token da API em `~/.kaggle/kaggle.json` ou variáveis `KAGGLE_USERNAME` / `KAGGLE_KEY` |
-| 4. Download | `scripts/download_data.py` (⬜ Etapa 0) baixa só `application_train.csv` |
-| Sem conta | Gerador sintético com o mesmo esquema: valida o pipeline, **não** reproduz as métricas |
+| Download | `scripts/download_data.py` (⬜ Etapa 0) baixa `data.csv` da UCI — **sem conta, sem token** |
+| Integridade | O script confere o SHA256 abaixo; se não bater, falha com mensagem clara |
+| Fonte fora do ar | Gerador sintético com o mesmo esquema: valida o pipeline, não reproduz as métricas |
+
+> ℹ️ A licença permitiria versionar o arquivo (2,9 MB) no repositório. Optamos por não
+> versionar para manter uma única fonte oficial e o hash como contrato de integridade;
+> se a UCI ficar instável, versionar passa a ser uma contingência permitida.
 
 ---
 
@@ -187,12 +190,14 @@ application_train.csv (~307.500 linhas, ~8% positivos)
 
 | Item | Valor |
 |------|-------|
-| Fonte | Kaggle — competição *Home Credit Default Risk* (Home Credit Group, 2018) |
-| Arquivo | `application_train.csv` |
-| Termos de uso | Regras da competição — uso não comercial, **sem redistribuição** (🟡 citar o trecho exato da aba *Rules*; decisões em ADR 12) |
-| Anonimização | Feita pelo provedor; `SK_ID_CURR` é pseudônimo |
-| SHA256 de `application_train.csv` | `52e96b895b1112e1c853f670e58372719c8441c5ed1c57ac2f7fad559d784f5f` |
-| Baixado em | 2026-11-07, Kaggle CLI 2.2.5 |
+| Fonte | [UCI ML Repository, id 350](https://archive.ics.uci.edu/dataset/350/default+of+credit+card+clients) |
+| Arquivo | `https://archive.ics.uci.edu/static/public/350/data.csv` |
+| Licença | **CC BY 4.0** — uso, adaptação e redistribuição permitidos, com atribuição |
+| Atribuição exigida | Yeh, I. (2009). *Default of Credit Card Clients* [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C55S3H |
+| Artigo de origem | Yeh, I. C., & Lien, C. H. (2009). *The comparisons of data mining techniques for the predictive accuracy of probability of default of credit card clients.* Expert Systems with Applications, 36(2). |
+| Anonimização | Feita na fonte: sem nome, documento ou contato; `ID` é sequencial |
+| SHA256 de `data.csv` | `45bcf4df62ff2e237a74eb155cabfb4bbbc171219a0637daef44fdad07503dd0` |
+| Baixado em | 2026-11-07 |
 
 ---
 

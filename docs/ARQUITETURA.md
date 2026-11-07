@@ -69,12 +69,10 @@ treino.
 |-----------|-------|
 | `DummyClassifier` | Piso |
 | `LogisticRegression` | Linear, interpretável — útil para o art. 20 da LGPD |
-| `XGBClassifier` | Árvores; lida nativamente com nulos de `EXT_SOURCE_3` e com não linearidades de idade e emprego |
+| `XGBClassifier` | Árvores, captura não linearidades de `PAY_*` |
 
-**Critério proposto:** maior AUC-ROC no teste entre os modelos com AUC ≥ 0,72 e acima do
-Dummy. Empate técnico (Δ < 0,01) desempata pela interpretabilidade. 🟡 Revisar após EDA —
-na tabela principal do Home Credit, sem as tabelas relacionais, AUCs na faixa de 0,72–0,76
-são o esperado. Acurácia não entra: o Dummy acerta ~92%.
+**Critério proposto:** maior AUC-ROC no teste entre os modelos com AUC ≥ 0,75 e acima do
+Dummy. Empate técnico (Δ < 0,01) desempata pela interpretabilidade. 🟡 Revisar após EDA.
 
 ---
 
@@ -114,11 +112,11 @@ detecção de drift seguinte. Ver [DATA_CONTRACTS.md](DATA_CONTRACTS.md#-comport
 | 05 | MLflow + dashboard HTML versionado | 🟡 Proposta | Etapa 3 sem infraestrutura; evidência visível sem rodar |
 | 06 | Lote inválido bloqueado por inteiro | 🟡 Proposta | Não mascarar falha de origem nem distorcer o drift |
 | 07 | Split referência × produção único, 50/50, estratificado | 🟡 Proposta | Separação exigida; M01 de controle mede falso positivo |
-| 08 | `CODE_GENDER` e `NAME_FAMILY_STATUS` fora das features; dados de contato descartados | 🟡 Proposta | LGPD art. 6º, III (necessidade) e IX (não discriminação) |
-| 09 | Dataset Home Credit Default Risk, só `application_train.csv`, ~20 colunas | ✅ Aceita | Cenário de concessão; renda e emprego; anomalias reais para o contrato; atributos para auditoria. Custo: login no Kaggle, mitigado com fallback sintético. Comparativo em [DATASET.md](DATASET.md#%EF%B8%8F-candidatos-avaliados) |
+| 08 | `SEX` e `MARRIAGE` fora das features | 🟡 Proposta | LGPD art. 6º, III (necessidade) e IX (não discriminação) |
+| 09 | Dataset UCI Default of Credit Card Clients | ✅ Aceita | Licença CC BY 4.0 compatível com uso acadêmico e com a simulação de drift; ≥ 5.000 linhas; download sem conta; atributos para auditoria de viés. Home Credit descartado pelos termos de uso (ADR 12) |
 | 10 | `uv run` como único runner documentado | ✅ Aceita | Lição do TC01: comandos que dependem de ferramenta não versionada falham |
-| 11 | Contrato valida colunas brutas; features derivadas depois | 🟡 Proposta | Regras de origem (sentinela, `XNA`) só são visíveis no dado bruto |
-| 12 | Dados nunca versionados nem compartilhados; acesso individual via Kaggle; só agregados publicados | ✅ Aceita | Termos de uso da competição (acesso condicionado ao aceite, sem redistribuição). Coerência com o tema de governança. Ver [README — Origem dos dados](../README.md#1-origem-dos-dados-e-termos-de-uso) |
+| 11 | Contrato valida colunas brutas; features derivadas depois | 🟡 Proposta | Regras de origem (códigos fora do dicionário) só são visíveis no dado bruto |
+| 12 | Termos de uso verificados antes de adotar qualquer dataset; Home Credit descartado | ✅ Aceita | As regras da competição limitam o uso "only for the purposes of the Competition" e proíbem manipular os dados. Ver [README — Origem dos dados](../README.md#1-origem-dos-dados-e-termos-de-uso) e [DATASET.md](DATASET.md#-por-que-não-o-home-credit) |
 
 ---
 

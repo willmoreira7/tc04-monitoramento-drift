@@ -15,7 +15,7 @@ caiu até a inadimplência aparecer no balanço, meses depois.
 
 | Sintoma em produção | Por que é silencioso | O que este projeto faz |
 |---------------------|---------------------|------------------------|
-| Lote com dados inválidos (renda nula, idade < 18, duplicatas, 1.000 anos de emprego) | O modelo pontua lixo sem reclamar | **Contrato de dados** bloqueia o lote antes da inferência |
+| Lote com dados inválidos (nulos, idade < 18, duplicatas) | O modelo pontua lixo sem reclamar | **Contrato de dados** bloqueia o lote antes da inferência |
 | Perfil dos clientes muda (Data Drift) | Nenhum erro técnico é disparado | **Testes estatísticos** (PSI, KS) comparam produção × referência |
 | A relação perfil → inadimplência muda (Concept Drift) | As features parecem normais | **Monitoramento de performance** quando os rótulos chegam |
 | Ninguém sabe o estado do pipeline | Falhas e alertas ficam espalhados | **Logs e métricas centralizados** + dashboard |
@@ -46,7 +46,7 @@ entregável é a camada de **sustentação** em torno dele:
 
 ```
                  ┌──────────────────────────────────────────────┐
-  Home Credit ─► │ limpeza → split 50/50 estratificado (seed 42)│
+  UCI dataset ─► │ split 50/50 (estratificado, seed 42)         │
                  └───────────┬──────────────────────┬───────────┘
                              ▼                      ▼
                  ┌──────────────────────┐  ┌──────────────────────────┐
@@ -153,24 +153,10 @@ tc04-monitoramento-drift/
 |-----------|--------|----------|---------------|
 | **uv** | 0.5+ | Ambiente Python com versões travadas | `pip install uv` ou [astral.sh/uv](https://docs.astral.sh/uv/getting-started/installation/) |
 | **Git** | — | Clonar o repositório | — |
-| **Conta no Kaggle** | — | Baixar o dataset (não versionado) | [Home Credit Default Risk](https://www.kaggle.com/competitions/home-credit-default-risk/data) |
 
-> 🔐 **Acesso aos dados — leia antes de começar.** O dataset **Home Credit Default Risk**
-> não está neste repositório e não pode ser compartilhado entre pessoas: os termos de uso
-> da competição condicionam o acesso a uma conta no Kaggle com as regras aceitas. Cada
-> pessoa (integrante do grupo ou avaliador) baixa com **a própria conta e o próprio token**.
->
-> 1. Criar conta no Kaggle e aceitar as regras em [Home Credit Default Risk → Rules](https://www.kaggle.com/competitions/home-credit-default-risk/rules)
->    (sem o aceite, a API retorna 403)
-> 2. Gerar um token em *Settings → API* e defini-lo na variável de ambiente `KAGGLE_API_TOKEN`
->    — nunca em arquivo dentro do projeto
-> 3. Rodar o script de download (⬜ Etapa 0), que confere o SHA256 do arquivo
->
-> **Sem conta?** O projeto gera dados sintéticos com o mesmo esquema: validam o pipeline,
-> mas não reproduzem as métricas. Os resultados do dataset real estão versionados em
-> `reports/` e podem ser lidos sem executar nada. Motivo e detalhes em
-> [Governança — Origem dos dados](#1-origem-dos-dados-e-termos-de-uso) e
-> [docs/DATASET.md](docs/DATASET.md#-obtenção).
+O dataset (UCI *Default of Credit Card Clients*, licença CC BY 4.0) é baixado por script,
+**sem conta e sem credencial**, e tem a integridade conferida por SHA256 — ver
+[docs/DATASET.md](docs/DATASET.md).
 
 ### Padrão de commits (opcional, só para contribuir)
 
@@ -216,63 +202,62 @@ validar mensagens de commit. Ver [docs/COMMITLINT.md](docs/COMMITLINT.md).
 > O enunciado exige esta documentação **consolidada no README**. Ela vive aqui, não em
 > `docs/`.
 
-> ℹ️ **Premissa.** O dataset (Home Credit Default Risk) é público e foi anonimizado pelo
-> provedor. A análise abaixo trata o projeto **como se fosse a operação de uma fintech
-> brasileira** sujeita à Lei 13.709/2018 (LGPD), que é o cenário do enunciado.
+> ℹ️ **Premissa.** O dataset é público, de origem taiwanesa e já anonimizado na fonte. A
+> análise abaixo trata o projeto **como se fosse a operação de uma fintech brasileira**
+> sujeita à Lei 13.709/2018 (LGPD), que é o cenário do enunciado.
 
 ### 1. Origem dos dados e termos de uso
 
-Antes de governar os dados dos clientes da fintech fictícia, o projeto precisa respeitar
-as condições sob as quais **nós** obtivemos os dados. É o mesmo princípio da finalidade
-(art. 6º, I) aplicado ao próprio grupo.
+Antes de governar os dados dos clientes da fintech fictícia, o grupo precisa ter o
+**direito de usar** os dados que ele mesmo obteve. É o princípio da finalidade (art. 6º, I)
+aplicado ao próprio projeto.
 
 | Item | Situação |
 |------|----------|
-| Fonte | Competição pública *Home Credit Default Risk* no Kaggle (Home Credit Group, 2018) |
-| Anonimização | Feita pelo provedor; `SK_ID_CURR` é um pseudônimo, sem nome, documento ou contato |
-| Condição de acesso | Conta no Kaggle **com as regras da competição aceitas**, individualmente |
-| Termos de uso | Uso não comercial, sem redistribuição dos dados a terceiros — 🟡 citar o trecho exato da aba *Rules* |
-| Finalidade neste projeto | Acadêmica: demonstrar sustentação de modelos (pós-graduação FIAP) |
+| Fonte | [UCI ML Repository, id 350](https://archive.ics.uci.edu/dataset/350/default+of+credit+card+clients) |
+| Licença | **CC BY 4.0** — permite usar, **adaptar** e redistribuir, com atribuição |
+| Atribuição | Yeh, I. (2009). *Default of Credit Card Clients* [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C55S3H |
+| Anonimização | Feita na fonte: sem nome, documento ou contato |
+| Integridade | SHA256 registrado em [docs/DATASET.md](docs/DATASET.md#-proveniência) e conferido no download |
 
-**Decisões que decorrem dos termos (ADR 12):**
+#### 🚫 Por que não usamos o Home Credit Default Risk
 
-| Decisão | Como é aplicada |
-|---------|-----------------|
-| Nenhum dado em nível de linha é versionado | `data/` inteiro no `.gitignore`: bruto, referência, lotes simulados e quarentena — os lotes **derivam** do dado original, então também não podem ser publicados |
-| Nenhum dado é repassado por outro canal | Sem Drive, S3 ou mensagem entre integrantes; cada pessoa baixa com a própria conta |
-| Credenciais são pessoais | Token do Kaggle só em variável de ambiente; nunca em arquivo do projeto, nunca compartilhado |
-| Mesmo arquivo para todos | SHA256 registrado em [docs/DATASET.md](docs/DATASET.md#-proveniência) e conferido pelo script de download |
-| Só agregados são publicados | `reports/`, Model Card e métricas trazem distribuições e estatísticas, nunca linhas |
-| Alternativa sem conta | Gerador sintético a partir de parâmetros declarados no código, sem copiar linhas do dataset |
+O Home Credit foi a **primeira escolha** do grupo: é sugerido pelo próprio enunciado e é
+mais rico (renda, emprego, scores de bureau). Chegamos a baixá-lo. Ao ler as regras da
+competição do Kaggle — aceitas por todo usuário antes do download — encontramos:
+
+> *"After your acceptance of these Rules, you may access and use the Competition Data
+> **only for the purposes of the Competition**."* — regra específica da competição, que
+> **substitui** a permissão genérica para uso acadêmico (regra geral 7.A)
+
+> *"You agree **not to manipulate the data** and not to use it for any other purpose other
+> than to participate in the Competition."* — regra geral 7.B
+
+Este projeto é acadêmico (fora da finalidade permitida), **altera a distribuição dos dados
+de propósito** para simular drift (manipulação proibida) e precisa mostrar resultados a um
+avaliador que não aceitou as regras (disponibilização proibida). Os três pontos conflitam
+com os termos. **Trocamos de dataset e eliminamos a cópia local.**
+
+> 💡 **"Público" não significa "de uso livre".** O dataset estava a um clique, era sugerido
+> pelo enunciado e é amplamente usado em cursos — e ainda assim os termos não cobriam este
+> uso. Verificar a licença virou passo obrigatório da escolha de dados (ADR 12). O custo
+> da troca (perder renda e emprego) está detalhado em
+> [docs/DATASET.md](docs/DATASET.md#-por-que-não-o-home-credit).
 
 ### 2. Inventário de dados pessoais
 
-Das 122 colunas originais, o pipeline ingere ~20. O recorte **já é** a primeira medida de
-minimização — ver [docs/DATASET.md](docs/DATASET.md#-recorte-de-colunas).
+| Coluna | Classificação LGPD | Usada no modelo? | Tratamento |
+|--------|-------------------|------------------|------------|
+| `ID` | Chave sequencial atribuída na fonte (pseudônimo) | ❌ Não | Usada só para unicidade e rastreio; nunca é feature |
+| `SEX` | Dado pessoal com potencial discriminatório | ❌ Não | Fora das features; mantida só no conjunto de **auditoria de viés** |
+| `MARRIAGE` | Dado pessoal com potencial discriminatório | ❌ Não | Idem `SEX` |
+| `AGE` | Dado pessoal | 🟡 A decidir na Etapa 1 | Necessária ao contrato (≥ 18); uso como feature depende da auditoria de viés |
+| `EDUCATION` | Dado pessoal (proxy socioeconômico) | 🟡 A decidir na Etapa 1 | Decisão por ablação: removida se o custo em AUC for desprezível |
+| `LIMIT_BAL`, `PAY_*`, `BILL_AMT*`, `PAY_AMT*` | Dados financeiros pessoais | ✅ Sim | Necessários à finalidade (avaliação de risco) |
 
-| Coluna(s) | Classificação LGPD | Usada no modelo? | Tratamento |
-|-----------|-------------------|------------------|------------|
-| `SK_ID_CURR` | Dado pseudonimizado (art. 13, §4º) — continua sendo dado pessoal | ❌ Não | Só como chave de unicidade e rastreio |
-| `FLAG_MOBIL`, `FLAG_EMAIL`, `FLAG_PHONE`… | Dados de contato | ❌ Não | **Descartados na ingestão** (necessidade, art. 6º, III) |
-| `CODE_GENDER` | Dado pessoal com potencial discriminatório | ❌ Não | Fora das features; mantido só no conjunto de **auditoria de viés** |
-| `NAME_FAMILY_STATUS` | Dado pessoal com potencial discriminatório | ❌ Não | Idem `CODE_GENDER` |
-| `DAYS_BIRTH` (idade) | Dado pessoal | 🟡 A decidir na Etapa 1 | Necessária ao contrato (≥ 18); uso como feature depende da auditoria de viés |
-| `NAME_EDUCATION_TYPE` | Dado pessoal (proxy socioeconômico) | 🟡 A decidir na Etapa 1 | Ablação: removida se o custo em AUC for desprezível |
-| `CNT_CHILDREN`, `CNT_FAM_MEMBERS` | Dado pessoal (proxy de estado civil) | 🟡 A decidir na Etapa 1 | Ablação, pelo mesmo critério |
-| `REGION_RATING_CLIENT` | Dado de localização (proxy socioeconômico) | 🟡 A decidir na Etapa 1 | Auditado por grupo: risco de discriminação geográfica |
-| `EXT_SOURCE_2`, `EXT_SOURCE_3` | Scores de **bureaus externos** | ✅ Sim | Ver "Dependência de score de terceiros" abaixo |
-| Renda, crédito, parcela, emprego, moradia, ocupação | Dados financeiros e profissionais | ✅ Sim | Necessários à finalidade (avaliação de risco) |
-
-Nenhuma coluna do recorte é **dado pessoal sensível** no sentido do art. 5º, II (origem
-racial, saúde, religião, biometria etc.). Gênero e estado civil não estão nessa lista,
-mas o **princípio da não discriminação** (art. 6º, IX) justifica tirá-los do modelo.
-
-**Dependência de score de terceiros.** `EXT_SOURCE_*` são os preditores mais fortes do
-dataset, e são scores de fontes externas cuja composição não é conhecida. Isso tem dois
-custos de governança: o compartilhamento com bureaus precisa de base legal própria
-(proteção do crédito, art. 7º, X), e a explicação da decisão ao titular (art. 20, §1º)
-fica limitada — o modelo herda a opacidade do score de terceiro. A ablação da Etapa 1
-mede quanto do desempenho depende deles.
+Nenhuma coluna do dataset é **dado pessoal sensível** no sentido do art. 5º, II (origem
+racial, saúde, religião, biometria etc.). Sexo e estado civil não estão nessa lista, mas
+o **princípio da não discriminação** (art. 6º, IX) justifica tirá-los do modelo.
 
 ### 3. Base legal da decisão de crédito
 
@@ -294,10 +279,10 @@ crédito. Consequências para este projeto:
 
 | Princípio (art. 6º) | Como o pipeline aplica |
 |--------------------|------------------------|
-| Necessidade (minimização) | ~20 de 122 colunas ingeridas; dados de contato descartados; gênero e estado civil fora do modelo; o contrato rejeita colunas fora do esquema |
+| Necessidade (minimização) | `ID`, `SEX` e `MARRIAGE` não chegam ao modelo; o contrato rejeita colunas fora do esquema |
 | Finalidade | Dados de produção usados só para scoring e monitoramento; nenhum uso secundário |
 | Qualidade dos dados | O contrato de dados **é** a implementação deste princípio |
-| Segurança | Dados brutos fora do Git (`.gitignore`, e as regras da competição proíbem redistribuir); relatórios versionados não contêm linhas individuais |
+| Segurança | Dados brutos fora do Git (`.gitignore`); relatórios versionados não contêm linhas individuais |
 | Transparência | Model Card público; critérios de decisão documentados |
 | Não discriminação | Atributos sensíveis fora das features + métricas de viés por grupo |
 | Responsabilização | Logs estruturados e execuções no MLflow formam a trilha de auditoria (art. 37) |
@@ -320,9 +305,8 @@ crédito. Consequências para este projeto:
 ### 6. Mitigação de vieses
 
 > 🟡 **A preencher na Etapa 1** com números medidos: taxa de aprovação e recall por grupo
-> de gênero, faixa de idade, escolaridade, estado civil e nota da região; razão de impacto
-> desigual (regra dos 4/5); e o resultado da ablação de idade, escolaridade, composição
-> familiar e `EXT_SOURCE_*`.
+> de `SEX`, `AGE` (faixas) e `EDUCATION`, razão de impacto desigual (regra dos 4/5) e o
+> resultado da ablação de `AGE`/`EDUCATION`.
 
 ---
 

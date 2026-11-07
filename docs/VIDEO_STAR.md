@@ -40,6 +40,9 @@ distribuição com teste estatístico, e documentar o tratamento de dados pessoa
 - 🟡 M05: painel de features verde, AUC caindo — a degradação silenciosa capturada
 - 🟡 Resultado da análise causal: qual drift realmente degradou o modelo
 - Lição: drift detectado não é sinônimo de retreinar
+- Lição de governança: o Home Credit, sugerido pelo enunciado, foi descartado porque os
+  termos limitam o uso aos fins da competição e proíbem manipular os dados — "público" não
+  é "de uso livre" (~15 s, cabe também em Action)
 
 ## ✅ Checklist antes de gravar
 

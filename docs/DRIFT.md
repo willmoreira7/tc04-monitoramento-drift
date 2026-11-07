@@ -15,9 +15,9 @@ mecanismos com efeitos diferentes no modelo. Este projeto separa três:
 
 | Mecanismo | O que muda | Como é simulado | O modelo deveria errar? | Quem detecta |
 |-----------|-----------|-----------------|------------------------|--------------|
-| **Covariate shift** (novos perfis, desemprego) | P(X) muda, P(y\|X) não | **Reamostragem ponderada** do pool: mais jovens, menos tempo de emprego, mais renda baixa | Pouco — ele já sabe pontuar esses perfis | Drift de features e de predição |
-| **Drift nominal** (inflação) | Valores monetários mudam, risco real não | **Transformação**: preços e crédito sobem mais que a renda, rótulo mantido | Sim — vê comprometimento de renda maior do que o risco real | Drift de features **e** queda de performance |
-| **Concept drift** (economia piora) | P(y\|X) muda, P(X) não | **Reetiquetagem**: probabilidade de default sobe para quem tem alto comprometimento de renda, features intactas | Sim — e **sem nenhum alerta de drift nas features** | Só performance, quando os rótulos chegam |
+| **Covariate shift** (novos perfis) | P(X) muda, P(y\|X) não | **Reamostragem ponderada** do pool: mais clientes jovens, mais endividados | Pouco — ele já sabe pontuar esses perfis | Drift de features e de predição |
+| **Drift nominal** (inflação) | Valores das features mudam, risco real não | **Transformação**: `BILL_AMT*` e `LIMIT_BAL` × fator de inflação, rótulo mantido | Sim — vê clientes "mais endividados" do que realmente são | Drift de features **e** queda de performance |
+| **Concept drift** (economia piora) | P(y\|X) muda, P(X) não | **Reetiquetagem**: probabilidade de default sobe para perfis de alta utilização, features intactas | Sim — e **sem nenhum alerta de drift nas features** | Só performance, quando os rótulos chegam |
 
 > 🔴 O terceiro mecanismo é a **degradação silenciosa** do enunciado: o painel de drift de
 > features fica verde enquanto o modelo erra mais. É o argumento central do vídeo.
@@ -26,32 +26,24 @@ mecanismos com efeitos diferentes no modelo. Este projeto separa três:
 
 ## 🗓️ Lotes
 
-Seis lotes mensais de **10.000 linhas** (~800 inadimplentes cada), retirados do pool de
-produção sem reposição.
+Seis lotes mensais de 2.500 linhas, retirados do pool de produção sem reposição.
 
 | Lote | Narrativa | Perturbação | Esperado |
 |------|----------|-------------|----------|
 | **M01** | Mês normal | Nenhuma | **Sem drift.** Mede a taxa de falso positivo do detector |
-| **M02** | Inflação começa | `AMT_GOODS_PRICE`, `AMT_CREDIT` × 1,10 · `AMT_ANNUITY` × 1,10 · renda × 1,03 | Drift leve nos valores e em `ANNUITY_INCOME_RATIO` (atenção) |
-| **M03** | Inflação + novos perfis | Valores × 1,25 (renda × 1,05) · reamostragem: mais clientes < 30 anos | Drift moderado/crítico em valores e idade |
-| **M04** | Desemprego sobe | M03 + reamostragem: menos `YEARS_EMPLOYED`, mais renda baixa e `EXT_SOURCE` baixo | Drift crítico em várias features e no score |
-| **M05** | Concept drift puro | Features como M01; P(default) ↑ para `ANNUITY_INCOME_RATIO` alto | **Sem drift de features**, queda de AUC/recall |
+| **M02** | Inflação começa | `BILL_AMT*` × 1,10 | Drift leve em `BILL_AMT*` (atenção) |
+| **M03** | Novos perfis + inflação | Reamostragem: mais `AGE` < 30 · `BILL_AMT*` × 1,25 | Drift moderado/crítico em `AGE` e `BILL_AMT*` |
+| **M04** | Aperto de crédito | M03 + mais `PAY_0` ≥ 2 · `LIMIT_BAL` × 0,85 | Drift crítico em várias features e no score |
+| **M05** | Concept drift puro | Features como M01; P(default) ↑ para alta utilização | **Sem drift de features**, queda de AUC/recall |
 | **M06** | Crise | M04 + reetiquetagem de M05 | Tudo dispara |
 
-Mais um **lote corrompido** (ver [DATA_CONTRACTS.md](DATA_CONTRACTS.md#-demonstração-exigida-pelo-enunciado)),
-que deve ser barrado antes de chegar aqui.
+Mais um **lote corrompido** (ver [DATA_CONTRACTS.md](DATA_CONTRACTS.md)), que deve ser
+barrado antes de chegar aqui.
 
-### Regras da simulação
-
-- **A perturbação acontece nas colunas brutas**, antes das features derivadas. Assim a
-  inflação aparece naturalmente em `CREDIT_INCOME_RATIO` e `ANNUITY_INCOME_RATIO`, como
-  aconteceria de verdade
-- **Todo lote perturbado continua válido no contrato.** Drift não é dado inválido; se a
-  simulação gerar um valor impossível (ex.: parcela > crédito), o simulador está errado
-- As features perturbadas são **importantes para o modelo** — exigência do enunciado. A
-  lista final sai do ranking de importância do baseline (Etapa 1). Se uma variável sair do
-  modelo por decisão de viés (ex.: idade), o drift de perfil é deslocado para outra feature
-  relevante
+> ℹ️ As features escolhidas são **importantes para o modelo** — exigência do enunciado. A
+> lista final sai do ranking de importância do baseline (Etapa 1). Se `AGE` ficar fora
+> das features por decisão de viés, o drift de perfil é deslocado para outra feature
+> relevante.
 
 ---
 
@@ -72,19 +64,12 @@ no Evidently, coluna a coluna.
 
 ### ⚠️ KS e amostras grandes
 
-Com 10.000 linhas por lote contra ~150.000 de referência, o p-valor do KS rejeita H₀ para
+Com 2.500 linhas por lote contra 15.000 de referência, o p-valor do KS rejeita H₀ para
 diferenças **sem relevância prática**. Usar só `p < 0,05` geraria alerta em M01. Por isso:
 
 - a decisão usa **PSI**, que mede tamanho de efeito
 - o KS é reportado com a **estatística D**, não só o p-valor
 - o lote M01 serve de calibração: se o KS dispara em M01, o limiar está errado
-
-### ⚠️ Nulos e sentinelas
-
-- `EXT_SOURCE_3` e `OCCUPATION_TYPE` têm nulos legítimos: a **fração de nulos** é
-  monitorada como métrica própria, além do PSI dos valores presentes
-- O sentinela `DAYS_EMPLOYED = 365243` distorce qualquer teste numérico: o drift é medido
-  sobre `YEARS_EMPLOYED` (sentinela → nulo) e sobre a fração de `EMPLOYED_ANOMALY`
 
 ### Limiares propostos
 
@@ -109,19 +94,13 @@ modelo piorou?"*. As duas respostas podem não coincidir.
 ### Hipótese causal (DAG)
 
 ```
-  Inflação ──► AMT_GOODS_PRICE, AMT_CREDIT, AMT_ANNUITY ↑ (nominal)
-      │                       │
-      │                       ▼
-      │        ANNUITY_INCOME_RATIO ↑ ◄── renda nominal sobe menos
-      │                       │
-      │                       ▼
-      │               score do modelo ──► decisão de crédito
-      │                       ▲
-  Desemprego ──► YEARS_EMPLOYED ↓, renda ↓, EXT_SOURCE ↓
-      │
-      └──────────► capacidade real de pagamento ↓ ──► inadimplência real ↑
+  Inflação ─────────► BILL_AMT* ↑ (nominal) ──┐
+      │                                       ├──► score do modelo ──► decisão
+      └──► capacidade de pagamento ↓ ──► PAY_* ↑ ──┘
+                       │
+                       └────────────────► inadimplência real ↑
 
-  Novos perfis ──► idade ↓, menos histórico ──► score do modelo
+  Novos perfis ─────► AGE ↓, LIMIT_BAL ↓ ──► score do modelo
 ```
 
 ### Método: intervenção, não correlação
@@ -129,23 +108,21 @@ modelo piorou?"*. As duas respostas podem não coincidir.
 Como a simulação é controlada, a causa verdadeira de cada degradação é **conhecida**. A
 análise aplica cada perturbação **isoladamente** sobre o mesmo lote base e mede o efeito:
 
-| Intervenção isolada | Features com drift | Δ AUC | Δ recall | Δ taxa de aprovação |
-|--------------------|-------------------|-------|----------|---------------------|
+| Intervenção isolada | Δ PSI da feature | Δ AUC | Δ recall | Δ taxa de aprovação |
+|--------------------|-----------------|-------|----------|---------------------|
 | Só inflação nominal | 🟡 | 🟡 | 🟡 | 🟡 |
-| Só novos perfis (idade) | 🟡 | 🟡 | 🟡 | 🟡 |
-| Só desemprego | 🟡 | 🟡 | 🟡 | 🟡 |
+| Só novos perfis (reamostragem) | 🟡 | 🟡 | 🟡 | 🟡 |
+| Só aperto (`PAY_0`, `LIMIT_BAL`) | 🟡 | 🟡 | 🟡 | 🟡 |
 | Só concept drift | 🟡 | 🟡 | 🟡 | 🟡 |
 
 **Perguntas que a tabela responde:**
 
 1. Qual drift **causa** degradação e qual é inofensivo? (drift ≠ degradação)
 2. O detector aponta para a causa verdadeira, ou para uma feature correlacionada?
-   (ex.: a inflação dispara alerta em `AMT_CREDIT`, mas o dano vem de `ANNUITY_INCOME_RATIO`)
 3. Quanto da degradação é invisível ao monitoramento de features? (concept drift)
 
-O resultado final — com a prescrição (retreinar, recalibrar, deflacionar os valores
-monetários ou revisar a política de crédito) — vai para a seção de Análise Causal do
-README.
+O resultado final — com a prescrição (retreinar, recalibrar, corrigir valores pela
+inflação ou revisar a política) — vai para a seção de Análise Causal do README.
 
 ---
 

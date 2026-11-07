@@ -14,11 +14,8 @@ Derivadas das avaliações dos três Tech Challenges anteriores. Cada regra diz 
 - Ao fechar cada etapa: clonar o repo em diretório temporário e executar a seção "Como
   Executar" do README do início ao fim, sem nenhum passo extra.
 - O CI executa os mesmos comandos do README (pipeline fim a fim), não uma versão paralela.
-- Dataset baixado por script. O Home Credit exige conta no Kaggle **e** aceite das regras
-  da competição: o README explica isso antes do primeiro comando, o script falha com
-  mensagem clara (não com stack trace) se faltar credencial ou aceite, e existe fallback
-  sintético com o mesmo esquema — que prova que o pipeline roda, não as métricas. O TC03
-  usou dataset do Kaggle com esse mesmo arranjo e tirou 90.
+- Dataset baixado por script, sem credencial. Se a fonte falhar, fallback sintético
+  documentado — que prova que o pipeline roda, não as métricas.
 - Evidências (`reports/*.html`, `docs/MODEL_CARD.md`) **versionadas**: se mesmo assim o
   avaliador não conseguir rodar, ele consegue ver o resultado.
 - `scripts/verify_setup.py`: um comando que diz se o ambiente está pronto e o que falta.
@@ -53,8 +50,10 @@ Derivadas das avaliações dos três Tech Challenges anteriores. Cada regra diz 
 
 ## 4. Requisitos do enunciado que viram regra
 
-- Mínimo de **5.000 amostras** no dataset. German Credit (1.000) **não serve**; o
-  escolhido é o Home Credit (~307.500).
+- Mínimo de **5.000 amostras** no dataset. German Credit (1.000) **não serve**.
+- **Licença verificada antes de adotar qualquer dado.** "Público" não é "de uso livre": o
+  Home Credit, sugerido pelo próprio enunciado, foi descartado porque as regras da
+  competição limitam o uso aos fins da competição e proíbem manipular os dados (ADR 12).
 - Pelo menos **3 regras rígidas** no contrato; o lote ruim precisa ser **bloqueado**, não
   só reportado.
 - Pelo menos **2 variáveis importantes** com drift intencional.

@@ -37,10 +37,8 @@ contratos de dados, simulação e detecção de Data/Concept Drift, observabilid
 pipeline e governança LGPD. O modelo é deliberadamente simples; o foco é o que acontece
 em volta dele.
 
-- **Dataset**: Home Credit Default Risk (Kaggle) — só `application_train.csv`, ~307.500
-  linhas, recortado para ~20 das 122 colunas; `TARGET` ~8% positivo. Ver `docs/DATASET.md`
-- **Dados nunca versionados**: as regras da competição proíbem redistribuir. Download exige
-  conta + aceite das regras; sem isso, fallback sintético com o mesmo esquema
+- **Dataset**: Default of Credit Card Clients (UCI id 350) — 30.000 linhas, 23 features,
+  target binário de inadimplência. Arquivo `data.csv` da UCI (colunas X1…X23, Y, renomeadas pelo loader)
 - **Modelo**: classificador simples (LogisticRegression / XGBoost), comparado com Dummy
 - **Stack**: Scikit-Learn · XGBoost · Pandera · Evidently AI · MLflow · structlog · uv · ruff · pytest
 
@@ -49,18 +47,13 @@ em volta dele.
 ## Divisão dos dados (invariante do projeto)
 
 ```
-application_train.csv (~307.500) → limpeza declarada
+dataset UCI (30.000)
  ├── referência (50%) ── treino / validação / teste do modelo
- └── pool de produção (50%) ── fonte dos lotes M01…M06 de 10.000 linhas (drift simulado)
+ └── pool de produção (50%) ── fonte dos lotes M01…M06 (com drift simulado)
                                 + lote corrompido (demonstração do contrato)
 ```
 
 - O split é estratificado pelo target e feito **uma única vez**, com seed 42
-- O contrato valida colunas **brutas**; features derivadas (`AGE_YEARS`, `YEARS_EMPLOYED`,
-  `ANNUITY_INCOME_RATIO`…) são criadas depois, no pipeline do modelo
-- O drift é simulado nas colunas brutas; um lote com drift **continua válido** no contrato
-- `DAYS_EMPLOYED = 365243` é sentinela, não valor: nunca entra cru em teste estatístico
-- Acurácia não é métrica deste projeto (o Dummy acerta ~92%): usar AUC-ROC, KS e recall
 - M01 é o **lote de controle**: sem perturbação, não pode acusar drift
 - Qualquer perturbação é declarada em `configs/drift_scenarios.yaml`, nunca hardcoded
 
@@ -116,12 +109,11 @@ uv sync --group dev        # ambiente (quando pyproject.toml existir)
 
 > Atualizar sempre que uma decisão 🟡 Proposta for confirmada ou alterada.
 
-- Dataset: Home Credit Default Risk, tabela principal recortada — ✅ decidido (2026-11-07)
+- Dataset: UCI Default of Credit Card Clients, CC BY 4.0 — ✅ decidido (2026-11-07). Home Credit descartado pelos termos de uso (ADR 12)
 - Biblioteca de contrato: Pandera — 🟡 proposta (ADR 02)
 - Rastreamento da Etapa 3: MLflow local (SQLite) + dashboard HTML estático — 🟡 proposta (ADR 05)
 - Limiares de drift: PSI ≥ 0,10 atenção · PSI ≥ 0,25 crítico · KS confirma — 🟡 proposta
-- Gate do baseline: AUC-ROC ≥ 0,72 no teste e acima do Dummy — 🟡 revisar após EDA
-- `CODE_GENDER` e `NAME_FAMILY_STATUS` fora das features (só auditoria de viés); idade,
-  escolaridade, composição familiar e `EXT_SOURCE_*` decididos por ablação na Etapa 1
+- Gate do baseline: AUC-ROC ≥ 0,75 no teste e acima do Dummy — 🟡 revisar após EDA
+- `SEX` e `MARRIAGE` fora das features; `AGE` e `EDUCATION` decididos por ablação na Etapa 1
 - Versões de Pandera e Evidently: fixar no `uv.lock` e anotar aqui (APIs mudaram de forma
   incompatível entre versões recentes)

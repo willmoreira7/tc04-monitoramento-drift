@@ -94,29 +94,15 @@ Decisões tomadas, limitações conhecidas ou pendências.
 
 ---
 
-## 🔐 Acesso ao Dataset (cada integrante)
+## 🔐 Dados e Licenças
 
-O dataset **não** está no repositório e **não** pode ser repassado entre integrantes —
-nem por Drive, S3 ou mensagem. Os termos de uso da competição condicionam o acesso a uma
-conta com as regras aceitas. Motivo completo em
-[README — Origem dos dados](../README.md#1-origem-dos-dados-e-termos-de-uso) e ADR 12.
-
-| Passo | O que fazer |
-|-------|-------------|
-| 1 | Criar conta no Kaggle (o Kaggle pode pedir verificação de telefone para competições) |
-| 2 | Aceitar as regras em [Home Credit Default Risk → Rules](https://www.kaggle.com/competitions/home-credit-default-risk/rules) |
-| 3 | Gerar o **próprio** token em *Settings → API* |
-| 4 | Definir a variável de ambiente `KAGGLE_API_TOKEN` (Windows: `setx KAGGLE_API_TOKEN "<token>"` e abrir um terminal novo) |
-| 5 | Rodar o script de download (⬜ Etapa 0), que confere o SHA256 |
-
-| ✅ Faça | ❌ Nunca |
-|---------|----------|
-| Usar o seu token, só em variável de ambiente | Compartilhar token, colar em chat, issue ou PR |
-| Enquanto não tiver acesso, trabalhar com os dados sintéticos | Enviar o CSV ou lotes derivados para outro integrante |
-| Publicar só agregados em `reports/` | Versionar qualquer arquivo de `data/` |
-
-> ⚠️ Os lotes simulados e a quarentena também **derivam** do dataset original: valem as
-> mesmas restrições do arquivo bruto.
+- O dataset (UCI 350, CC BY 4.0) é baixado por script, **sem conta e sem token**.
+  Ninguém precisa repassar arquivo para ninguém.
+- Toda publicação que usar os dados (README, relatórios, vídeo) mantém a **atribuição**
+  exigida pela licença — texto em [DATASET.md](DATASET.md#-proveniência).
+- **Antes de propor qualquer outro dado** (externo, complementar, de outra fonte), leia os
+  termos de uso e registre a análise como ADR. O Home Credit foi descartado justamente por
+  isso — ver ADR 12 em [ARQUITETURA.md](ARQUITETURA.md).
 
 ---
 

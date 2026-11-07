@@ -176,7 +176,7 @@ UCI (30.000 linhas, 22,12% inadimplentes)
 
 | Passo | Detalhe |
 |-------|---------|
-| Download | `scripts/download_data.py` (⬜ Etapa 0) baixa `data.csv` da UCI — **sem conta, sem token** |
+| Download | `scripts/download_data.py` (✅) baixa `data.csv` da UCI — **sem conta, sem token** |
 | Integridade | O script confere o SHA256 abaixo; se não bater, falha com mensagem clara |
 | Fonte fora do ar | Gerador sintético com o mesmo esquema: valida o pipeline, não reproduz as métricas |
 

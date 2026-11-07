@@ -81,12 +81,19 @@ tests/                 # pytest, espelhando src/
 
 ## Comandos
 
-> Preencher **apenas** com comandos que já existem e foram executados. Hoje nenhum
-> comando de pipeline existe ainda.
+> Preencher **apenas** com comandos que já existem e foram executados num clone limpo.
 
 ```bash
-uv sync --group dev        # ambiente (quando pyproject.toml existir)
+uv sync --group dev                                    # ambiente (versões do uv.lock)
+uv run python scripts/download_data.py                 # dataset real da UCI, confere SHA256
+uv run python scripts/download_data.py --synthetic     # fallback sintético (mesmo esquema)
+uv run python scripts/verify_setup.py                  # diagnóstico do ambiente
+uv run pytest                                          # testes (sem rede)
+uv run ruff check . && uv run ruff format --check .    # lint
 ```
+
+Variáveis úteis: `TC04_LOG_FORMAT=json` (logs em JSON) · `MLFLOW_DISABLE_AGENT_HINT=1`
+(silencia a dica de console do MLflow) · `UV_LINK_MODE=copy` (OneDrive não suporta hardlink).
 
 ---
 
@@ -115,5 +122,14 @@ uv sync --group dev        # ambiente (quando pyproject.toml existir)
 - Limiares de drift: PSI ≥ 0,10 atenção · PSI ≥ 0,25 crítico · KS confirma — 🟡 proposta
 - Gate do baseline: AUC-ROC ≥ 0,75 no teste e acima do Dummy — 🟡 revisar após EDA
 - `SEX` e `MARRIAGE` fora das features; `AGE` e `EDUCATION` decididos por ablação na Etapa 1
-- Versões de Pandera e Evidently: fixar no `uv.lock` e anotar aqui (APIs mudaram de forma
-  incompatível entre versões recentes)
+- Versões travadas (2026-11-07): Python 3.12 · pandas 2.3.3 · numpy 2.5.4 · scikit-learn
+  1.9.1 · xgboost 3.4.1 · pandera 0.35.0 · evidently 0.7.23 · mlflow 3.18.0
+- **pandas fixado em `<3`**: o Evidently 0.7.23 importa `infer_dtype_from_object`, removida no
+  pandas 3 — o import quebra. Revisar só quando o Evidently declarar suporte
+- Pandera: usar `import pandera.pandas as pa` (o import de topo `pandera` está depreciado)
+- Evidently 0.7 (API nova): `from evidently import Report, Dataset, DataDefinition` e
+  `from evidently.metrics import ValueDrift, DriftedColumnsCount`. PSI e KS via
+  `ValueDrift(column=..., method="psi" | "ks")`. **O KS devolve o p-valor**, não a estatística
+  D — a D é calculada à parte (scipy). Exemplos da API antiga (`evidently.report`,
+  `ColumnDriftMetric`) não servem
+- Relatório HTML do Evidently tem ~3,7 MB — considerar no volume de `reports/` versionado

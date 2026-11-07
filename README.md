@@ -1,5 +1,7 @@
 # 💳 tc04-monitoramento-drift — Sustentação e Confiabilidade de um Modelo de Credit Scoring
 
+[![CI](https://github.com/willmoreira7/tc04-monitoramento-drift/actions/workflows/ci.yml/badge.svg)](https://github.com/willmoreira7/tc04-monitoramento-drift/actions/workflows/ci.yml)
+
 > Contratos de dados, detecção de Data/Concept Drift, observabilidade do pipeline e
 > governança LGPD para um modelo de crédito em produção.
 
@@ -107,10 +109,10 @@ atribuível à simulação.
 ```
 tc04-monitoramento-drift/
 ├── configs/
-│   ├── pipeline.yaml           # ⬜ Seed, splits, limiares de drift e de alerta
-│   └── drift_scenarios.yaml    # ⬜ Perturbações de cada lote simulado
+│   ├── pipeline.yaml           # ✅ Seed, fonte e SHA256 do dataset (limiares nas próximas etapas)
+│   └── drift_scenarios.yaml    # ⬜ Perturbações de cada lote simulado (Etapa 2)
 ├── data/                       # Não versionado — gerado pelos scripts
-│   ├── raw/                    #   dataset original
+│   ├── raw/                    #   dataset original (e o sintético, se gerado)
 │   ├── reference/              #   dataset de referência (treino)
 │   ├── production/             #   lotes simulados M01…M06
 │   └── quarantine/             #   lotes rejeitados pelo contrato
@@ -121,16 +123,19 @@ tc04-monitoramento-drift/
 │   ├── validation/             #   resultado dos contratos por lote
 │   ├── drift/                  #   relatórios Evidently por lote
 │   └── monitoring/             #   dashboard consolidado
-├── scripts/                    # ⬜ Download, verificação de ambiente, pipeline completo
+├── scripts/
+│   ├── download_data.py        # ✅ Dataset real (SHA256) ou sintético
+│   └── verify_setup.py         # ✅ Diz se o ambiente está pronto e o que falta
 ├── src/
-│   ├── data/                   # ⬜ Loader e split referência × produção
+│   ├── config.py               # ✅ Caminhos, seed e configuração
+│   ├── data/                   # ✅ Esquema, download e sintético · ⬜ loader e split (Etapa 1)
 │   ├── contracts/              # ⬜ Schemas Pandera e validação (Etapa 1)
 │   ├── models/                 # ⬜ Treino e predição do baseline (Etapa 1)
 │   ├── drift/                  # ⬜ Simulação e detecção (Etapa 2)
-│   ├── monitoring/             # ⬜ Logs, métricas, alertas (Etapa 3)
+│   ├── monitoring/             # ✅ Logging (structlog) · ⬜ métricas e alertas (Etapa 3)
 │   └── pipeline/               # ⬜ Orquestração das etapas
-├── tests/                      # ⬜ pytest
-└── .github/workflows/          # ⬜ CI: lint → testes → pipeline fim a fim
+├── tests/                      # ✅ pytest, sem dependência de rede
+└── .github/workflows/          # ✅ CI: lint → testes · dataset real · commitlint
 ```
 
 **Legenda:** ✅ existe · ⬜ a construir na etapa indicada
@@ -158,6 +163,46 @@ O dataset (UCI *Default of Credit Card Clients*, licença CC BY 4.0) é baixado 
 **sem conta e sem credencial**, e tem a integridade conferida por SHA256 — ver
 [docs/DATASET.md](docs/DATASET.md).
 
+O Python 3.12 é instalado pelo próprio `uv`; não é preciso tê-lo no sistema.
+
+> ⚠️ **Todos os comandos usam `uv run`.** Isso executa dentro do ambiente do projeto sem
+> ativar venv. Rodar `python ...` direto usaria o Python do sistema, sem as dependências.
+> `pip install -e ".[dev]"` **não funciona**: as dependências de desenvolvimento estão em
+> `[dependency-groups]` (PEP 735), que o pip ignora.
+
+### 1. Ambiente e dataset
+
+```bash
+git clone https://github.com/willmoreira7/tc04-monitoramento-drift.git
+cd tc04-monitoramento-drift
+
+uv sync --group dev                          # cria o .venv com as versões do uv.lock
+uv run python scripts/download_data.py       # baixa o dataset da UCI e confere o SHA256
+uv run python scripts/verify_setup.py        # confirma que está tudo pronto
+```
+
+O `verify_setup.py` termina com `ready=True` quando o ambiente está correto; se algo
+faltar, ele diz qual comando rodar. Rodar o download de novo é seguro: um arquivo íntegro
+não é baixado outra vez, e um arquivo corrompido é substituído.
+
+> ℹ️ Na primeira execução, o Evidently emite um `SyntaxWarning` interno ao ser importado.
+> É inofensivo e não se repete.
+
+**Sem acesso à UCI?** Gere um substituto sintético com o mesmo esquema. Ele valida o
+pipeline, mas **não** reproduz as métricas documentadas:
+
+```bash
+uv run python scripts/download_data.py --synthetic
+```
+
+### 2. Testes e qualidade de código
+
+```bash
+uv run pytest
+uv run ruff check .
+uv run ruff format --check .
+```
+
 ### Padrão de commits (opcional, só para contribuir)
 
 ```bash
@@ -174,7 +219,7 @@ validar mensagens de commit. Ver [docs/COMMITLINT.md](docs/COMMITLINT.md).
 
 | Etapa | Disciplina | Entregável | Status |
 |-------|-----------|-----------|--------|
-| **0** | — | Documentação inicial, regras e definições | 🟡 Em andamento |
+| **0** | — | Documentação, regras, ambiente, download do dataset e CI | ✅ Concluída |
 | **1** | Validação de Dados e Bibliotecas de Qualidade | Contrato Pandera + lote ruim bloqueado + modelo baseline | ⬜ Não iniciada |
 | **2** | Data Drift | Lotes simulados + relatórios Evidently (PSI/KS) | ⬜ Não iniciada |
 | **3** | Monitoramento de Pipelines e Infraestrutura | Logs centralizados + MLflow + dashboard | ⬜ Não iniciada |

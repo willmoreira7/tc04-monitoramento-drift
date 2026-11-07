@@ -4,8 +4,8 @@
 > referência e produção.
 
 > ✅ **Decisão:** Home Credit Default Risk — apenas a tabela principal
-> (`application_train.csv`), recortada. Números marcados com "~" vêm da literatura da
-> competição e são **confirmados na EDA** (Etapa 1).
+> (`application_train.csv`), recortada. Os números de ocorrência abaixo foram **conferidos
+> no arquivo baixado em 2026-11-07** (SHA256 na seção de Proveniência).
 
 ---
 
@@ -60,7 +60,7 @@
 ## 📋 Recorte de colunas
 
 Fonte: [Kaggle — Home Credit Default Risk](https://www.kaggle.com/competitions/home-credit-default-risk/data),
-arquivo `application_train.csv` (~307.511 linhas × 122 colunas; `TARGET` = 1 indica
+arquivo `application_train.csv` (307.511 linhas × 122 colunas; `TARGET` = 1 indica
 dificuldade de pagamento, ~8%).
 
 ### Chave e target
@@ -124,16 +124,18 @@ dificuldade de pagamento, ~8%).
 
 ## 🧹 Problemas conhecidos e tratamento
 
-| Problema | Ocorrência (~) | Na referência (limpeza) | Em produção (contrato) |
+| Problema | Ocorrência | Na referência (limpeza) | Em produção (contrato) |
 |----------|---------------|-------------------------|------------------------|
-| `DAYS_EMPLOYED = 365243` | ~18% (aposentados e desempregados) | Vira `YEARS_EMPLOYED` nulo + `EMPLOYED_ANOMALY = 1` | Aceito **só** com `NAME_INCOME_TYPE` ∈ {Pensioner, Unemployed}; positivo em outro caso bloqueia |
+| `DAYS_EMPLOYED = 365243` | 55.374 (18,0%): 55.352 Pensioner + 22 Unemployed — **nenhum outro tipo de renda** | Vira `YEARS_EMPLOYED` nulo + `EMPLOYED_ANOMALY = 1` | Aceito **só** com `NAME_INCOME_TYPE` ∈ {Pensioner, Unemployed}; positivo em outro caso bloqueia |
 | `CODE_GENDER = 'XNA'` | 4 linhas | Removidas | Bloqueia |
-| `NAME_FAMILY_STATUS = 'Unknown'` | ~2 linhas | Removidas | Bloqueia |
-| Renda extrema (~117 milhões) | 1 linha | Removida | Acima do teto bloqueia |
-| `AMT_ANNUITY` nulo | ~12 linhas | Removidas | Bloqueia |
-| `AMT_GOODS_PRICE` nulo | ~278 linhas | Removidas | Bloqueia |
-| `OCCUPATION_TYPE` nulo | ~31% | Mantido como categoria "Unknown" | Permitido; fração monitorada (aviso) |
-| `EXT_SOURCE_3` nulo | ~20% | Imputado no pipeline do modelo | Permitido; fração monitorada (aviso) |
+| `NAME_FAMILY_STATUS = 'Unknown'` | 2 linhas | Removidas | Bloqueia |
+| Renda extrema | 117 milhões (1 linha); seguintes: 18 mi, 13,5 mi, 9 mi — p99,9 = 900 mil | Remover acima do teto (🟡 teto a definir na EDA) | Acima do teto bloqueia |
+| `AMT_ANNUITY` nulo | 12 linhas | Removidas | Bloqueia |
+| `AMT_GOODS_PRICE` nulo | 278 linhas | Removidas | Bloqueia |
+| `OCCUPATION_TYPE` nulo | 96.391 (31,3%) | Mantido como categoria "Unknown" | Permitido; fração monitorada (aviso) |
+| `EXT_SOURCE_3` nulo | 60.965 (19,8%) | Imputado no pipeline do modelo | Permitido; fração monitorada (aviso) |
+| `EXT_SOURCE_2` nulo | 660 (0,2%) | Imputado no pipeline do modelo | Permitido |
+| `CNT_FAM_MEMBERS` nulo | 2 linhas | Removidas | Bloqueia |
 
 > 🔴 A limpeza da referência é código, aplicada **antes** do split, e cada remoção é
 > contada e logada. O contrato de produção é mais estrito que a limpeza: lá, um valor
@@ -189,7 +191,8 @@ application_train.csv (~307.500 linhas, ~8% positivos)
 | Arquivo | `application_train.csv` |
 | Licença | Regras da competição — uso não comercial, **sem redistribuição** |
 | Anonimização | Feita pelo provedor; `SK_ID_CURR` é pseudônimo |
-| Hash do arquivo bruto | 🟡 Registrar após o primeiro download |
+| SHA256 de `application_train.csv` | `52e96b895b1112e1c853f670e58372719c8441c5ed1c57ac2f7fad559d784f5f` |
+| Baixado em | 2026-11-07, Kaggle CLI 2.2.5 |
 
 ---
 

@@ -1,0 +1,23 @@
+# Configuracao central do pipeline. Limiares e parametros vivem aqui, nunca no codigo.
+# Documentacao: docs/DATASET.md, docs/DATA_CONTRACTS.md, docs/DRIFT.md, docs/MONITORING.md
+
+seed: 42
+
+dataset:
+  name: uci_default_of_credit_card_clients
+  uci_id: 350
+  url: https://archive.ics.uci.edu/static/public/350/data.csv
+  # SHA256 do arquivo oficial, conferido em 2026-11-07. Se nao bater, o download falha.
+  sha256: 45bcf4df62ff2e237a74eb155cabfb4bbbc171219a0637daef44fdad07503dd0
+  raw_file: uci_350_data.csv
+  synthetic_file: synthetic_350_data.csv
+  expected_rows: 30000
+  license: CC BY 4.0
+  attribution: >-
+    Yeh, I. (2009). Default of Credit Card Clients [Dataset].
+    UCI Machine Learning Repository. https://doi.org/10.24432/C55S3H
+
+synthetic:
+  # Fallback para quem nao conseguir baixar o dataset real e para o CI.
+  # Valida o pipeline; NAO reproduz as metricas documentadas.
+  default_rows: 30000

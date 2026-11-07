@@ -1,0 +1,113 @@
+# CI: executa os MESMOS comandos documentados no README (regra .claude/rules/entrega.md).
+#
+#   lint ──► test
+#   data           (baixa o dataset real da UCI e confere o SHA256)
+#   commitlint     (so em pull request)
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_PYTHON: "3.12"
+  TC04_LOG_FORMAT: json
+  MLFLOW_DISABLE_AGENT_HINT: "1"
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10.1.0
+        with:
+          enable-cache: true
+
+      # --locked falha se o uv.lock estiver dessincronizado do pyproject.toml.
+      - name: Instalar dependencias
+        run: uv sync --group dev --locked
+
+      - name: ruff check
+        run: uv run ruff check .
+
+      - name: ruff format
+        run: uv run ruff format --check .
+
+  test:
+    name: Testes
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10.1.0
+        with:
+          enable-cache: true
+
+      - name: Instalar dependencias
+        run: uv sync --group dev --locked
+
+      - name: Gerar dataset sintetico
+        run: uv run python scripts/download_data.py --synthetic --rows 5000
+
+      - name: pytest
+        run: uv run pytest --cov=src --cov-report=term-missing
+
+  data:
+    name: Dataset real (UCI)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10.1.0
+        with:
+          enable-cache: true
+
+      - name: Instalar dependencias
+        run: uv sync --group dev --locked
+
+      # Mesmos comandos do README: prova que um clone limpo obtem o dado real sem conta.
+      - name: Baixar dataset
+        run: uv run python scripts/download_data.py
+
+      - name: Verificar ambiente
+        run: uv run python scripts/verify_setup.py
+
+  commitlint:
+    name: Commitlint
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Validar mensagens do PR
+        run: >
+          npx commitlint
+          --from ${{ github.event.pull_request.base.sha }}
+          --to ${{ github.event.pull_request.head.sha }}
+          --verbose

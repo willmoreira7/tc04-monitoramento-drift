@@ -119,10 +119,10 @@ os problemas dos Tech Challenges anteriores.
 
 ### Tarefas
 
-- [ ] Investigar as 35 linhas idênticas com IDs diferentes (duplicata ou coincidência)
-- [ ] EDA (`notebooks/01_eda.ipynb`): domínios reais, valores fora do dicionário, desbalanceamento
-- [ ] Split único e estratificado referência × pool de produção (seed 42)
-- [ ] Limpeza da referência (ex.: `EDUCATION` 0/5/6 → 4 "outros") — ver [DATASET.md](DATASET.md)
+- [x] Investigar as 35 linhas idênticas com IDs diferentes (duplicata ou coincidência)
+- [x] EDA (`notebooks/01_eda.ipynb`): domínios reais, valores fora do dicionário, desbalanceamento
+- [x] Split único e estratificado referência × pool de produção (seed 42)
+- [x] Limpeza da referência: `EDUCATION` 0/5/6 → 4, `MARRIAGE` 0 → 3, 35 perfis duplicados removidos — ver [01_eda.ipynb](../notebooks/01_eda.ipynb)
 - [ ] Escrever o contrato Pandera com as regras de [DATA_CONTRACTS.md](DATA_CONTRACTS.md)
 - [ ] Validar a referência contra o contrato **antes** do treino
 - [ ] Treinar Dummy, LogisticRegression e XGBoost no mesmo split; promover pelo critério declarado

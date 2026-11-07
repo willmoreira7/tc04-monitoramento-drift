@@ -88,8 +88,11 @@ uv sync --group dev                                    # ambiente (versões do u
 uv run python scripts/download_data.py                 # dataset real da UCI, confere SHA256
 uv run python scripts/download_data.py --synthetic     # fallback sintético (mesmo esquema)
 uv run python scripts/verify_setup.py                  # diagnóstico do ambiente
+uv run python scripts/prepare_data.py                  # limpeza + split ref × produção (--synthetic)
+uv run jupyter lab notebooks/                          # notebooks (versionados com saídas)
 uv run pytest                                          # testes (sem rede)
 uv run ruff check . && uv run ruff format --check .    # lint
+uv run nbqa ruff notebooks/                            # lint dos notebooks
 ```
 
 Variáveis úteis: `TC04_LOG_FORMAT=json` (logs em JSON) · `MLFLOW_DISABLE_AGENT_HINT=1`

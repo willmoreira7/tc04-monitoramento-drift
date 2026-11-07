@@ -26,7 +26,7 @@ mecanismos com efeitos diferentes no modelo. Este projeto separa três:
 
 ## 🗓️ Lotes
 
-Seis lotes mensais de 2.500 linhas, retirados do pool de produção sem reposição.
+Seis lotes mensais de 2.400 linhas, retirados do pool de produção sem reposição.
 
 | Lote | Narrativa | Perturbação | Esperado |
 |------|----------|-------------|----------|
@@ -64,7 +64,7 @@ no Evidently, coluna a coluna.
 
 ### ⚠️ KS e amostras grandes
 
-Com 2.500 linhas por lote contra 15.000 de referência, o p-valor do KS rejeita H₀ para
+Com 2.400 linhas por lote contra ~15.000 de referência, o p-valor do KS rejeita H₀ para
 diferenças **sem relevância prática**. Usar só `p < 0,05` geraria alerta em M01. Por isso:
 
 - a decisão usa **PSI**, que mede tamanho de efeito

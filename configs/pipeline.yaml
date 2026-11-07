@@ -17,6 +17,23 @@ dataset:
     Yeh, I. (2009). Default of Credit Card Clients [Dataset].
     UCI Machine Learning Repository. https://doi.org/10.24432/C55S3H
 
+cleaning:
+  # Aplicada SO na referencia, antes do split. Em producao o contrato rejeita esses codigos.
+  # Evidencias: notebooks/01_eda.ipynb
+  education_other_codes: [0, 5, 6]   # fora do dicionario; inadimplencia proxima do codigo 4
+  education_other_value: 4
+  marriage_other_codes: [0]          # fora do dicionario
+  marriage_other_value: 3
+  # 35 pares de linhas identicas (23 features + target) com IDs diferentes: nao da para
+  # distinguir cadastro duplicado de coincidencia; remover a copia custa 0,12% das linhas.
+  drop_duplicate_profiles: true
+
+split:
+  production_fraction: 0.5   # pool de producao, fonte dos lotes simulados
+  validation_fraction: 0.15  # da referencia
+  test_fraction: 0.15        # da referencia
+  max_default_rate_gap_pp: 1.0
+
 synthetic:
   # Fallback para quem nao conseguir baixar o dataset real e para o CI.
   # Valida o pipeline; NAO reproduz as metricas documentadas.

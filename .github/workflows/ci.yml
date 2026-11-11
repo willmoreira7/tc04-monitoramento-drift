@@ -73,6 +73,9 @@ jobs:
       - name: Treinar e promover o modelo (sintetico)
         run: uv run python scripts/train_model.py
 
+      - name: Ablacao e auditoria de vies (sintetico)
+        run: uv run python scripts/audit_model.py
+
       - name: Contrato - lote valido aprovado (sintetico)
         run: uv run python scripts/validate_batch.py --demo valid
 
@@ -115,6 +118,9 @@ jobs:
 
       - name: Treinar e promover o modelo (dataset real)
         run: uv run python scripts/train_model.py
+
+      - name: Ablacao e auditoria de vies (dataset real)
+        run: uv run python scripts/audit_model.py
 
       - name: Contrato - lote valido aprovado (dataset real)
         run: uv run python scripts/validate_batch.py --demo valid

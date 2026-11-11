@@ -128,13 +128,14 @@ tc04-monitoramento-drift/
 │   ├── download_data.py        # ✅ Dataset real (SHA256) ou sintético
 │   ├── prepare_data.py         # ✅ Limpeza e split referência × produção
 │   ├── train_model.py          # ✅ Treina, compara e promove o modelo (ADR 04)
+│   ├── audit_model.py          # ✅ Ablação de AGE/EDUCATION e auditoria de viés (ADR 13)
 │   ├── validate_batch.py       # ✅ Demonstra o contrato: lote válido passa, corrompido é bloqueado
 │   └── verify_setup.py         # ✅ Diz se o ambiente está pronto e o que falta
 ├── src/
 │   ├── config.py               # ✅ Caminhos, seed e configuração
 │   ├── data/                   # ✅ Esquema, download, sintético, carga, limpeza e split
 │   ├── contracts/              # ✅ Contrato Pandera (C1–C8), avisos e lote corrompido
-│   ├── models/                 # ✅ Candidatos, métricas (AUC, KS) e critério de promoção
+│   ├── models/                 # ✅ Candidatos, métricas, promoção, ablação e auditoria de viés
 │   ├── drift/                  # ⬜ Simulação e detecção (Etapa 2)
 │   ├── monitoring/             # ✅ Logging (structlog) · ⬜ métricas e alertas (Etapa 3)
 │   └── pipeline/               # ✅ Preparo, validação e treino · ⬜ demais estágios
@@ -269,15 +270,31 @@ monitorado, não o entregável (ADR 04 em [docs/ARQUITETURA.md](docs/ARQUITETURA
 
 | Modelo | AUC validação | AUC teste | KS teste | |
 |--------|---------------|-----------|----------|---|
-| **XGBoost** | **0,7602** | **0,7479** | 0,3726 | ✅ promovido |
-| LogisticRegression | 0,7057 | 0,7206 | 0,3862 | elegível |
+| **XGBoost** | **0,7622** | **0,7368** | 0,3779 | ✅ promovido |
+| LogisticRegression | 0,7081 | 0,7183 | 0,3938 | elegível |
 | Dummy | 0,4902 | 0,4910 | 0,0000 | piso |
 
 O modelo vai para `models/baseline/` (não versionado); a comparação completa fica em
 [`reports/model/model_comparison.json`](reports/model/model_comparison.json) (versionado).
 Leitura dos resultados e limitações no [Model Card](docs/MODEL_CARD.md).
 
-### 6. Testes e qualidade de código
+O modelo usa **só as 19 variáveis financeiras**: `AGE` e `EDUCATION` saíram pela ablação
+do passo 6.
+
+### 6. Ablação e auditoria de viés
+
+```bash
+uv run python scripts/audit_model.py
+```
+
+- **Ablação** ([`reports/model/ablation.json`](reports/model/ablation.json)): repete a
+  comparação com e sem `AGE`/`EDUCATION` e aplica o critério declarado antes de rodar (ADR
+  13). Sem os dois, a AUC de validação vai de 0,7602 para 0,7622, então eles saem.
+- **Viés** ([`reports/model/fairness_audit.json`](reports/model/fairness_audit.json)):
+  aprovação e recall por grupo de sexo, idade, escolaridade e estado civil, no teste,
+  com o modelo promovido. Leitura na [seção 6 de Governança](#6-mitigação-de-vieses).
+
+### 7. Testes e qualidade de código
 
 ```bash
 uv run pytest
@@ -303,7 +320,7 @@ validar mensagens de commit. Ver [docs/COMMITLINT.md](docs/COMMITLINT.md).
 | Etapa | Disciplina | Entregável | Status |
 |-------|-----------|-----------|--------|
 | **0** | — | Documentação, regras, ambiente, download do dataset e CI | ✅ Concluída |
-| **1** | Validação de Dados e Bibliotecas de Qualidade | Contrato Pandera + lote ruim bloqueado + modelo baseline | 🟡 Em andamento (falta viés/ablação) |
+| **1** | Validação de Dados e Bibliotecas de Qualidade | Contrato Pandera + lote ruim bloqueado + modelo baseline | ✅ Concluída |
 | **2** | Data Drift | Lotes simulados + relatórios Evidently (PSI/KS) | ⬜ Não iniciada |
 | **3** | Monitoramento de Pipelines e Infraestrutura | Logs centralizados + MLflow + dashboard | ⬜ Não iniciada |
 | **4** | Privacy by Design e by Default | Governança LGPD + análise causal + vídeo STAR | ⬜ Não iniciada |
@@ -379,8 +396,8 @@ com os termos. **Trocamos de dataset e eliminamos a cópia local.**
 | `ID` | Chave sequencial atribuída na fonte (pseudônimo) | ❌ Não | Usada só para unicidade e rastreio; nunca é feature |
 | `SEX` | Dado pessoal com potencial discriminatório | ❌ Não | Fora das features; mantida só no conjunto de **auditoria de viés** |
 | `MARRIAGE` | Dado pessoal com potencial discriminatório | ❌ Não | Idem `SEX` |
-| `AGE` | Dado pessoal | 🟡 A decidir na Etapa 1 | Necessária ao contrato (≥ 18); uso como feature depende da auditoria de viés |
-| `EDUCATION` | Dado pessoal (proxy socioeconômico) | 🟡 A decidir na Etapa 1 | Decisão por ablação: removida se o custo em AUC for desprezível |
+| `AGE` | Dado pessoal | ❌ Não (ADR 13) | Removida pela ablação: sem ela a AUC não cai. Continua no lote para o contrato (≥ 18) e para a auditoria de viés |
+| `EDUCATION` | Dado pessoal (proxy socioeconômico) | ❌ Não (ADR 13) | Removida pela ablação, junto com `AGE`. Continua só na auditoria de viés |
 | `LIMIT_BAL`, `PAY_*`, `BILL_AMT*`, `PAY_AMT*` | Dados financeiros pessoais | ✅ Sim | Necessários à finalidade (avaliação de risco) |
 
 Nenhuma coluna do dataset é **dado pessoal sensível** no sentido do art. 5º, II (origem
@@ -407,7 +424,7 @@ crédito. Consequências para este projeto:
 
 | Princípio (art. 6º) | Como o pipeline aplica |
 |--------------------|------------------------|
-| Necessidade (minimização) | `ID`, `SEX` e `MARRIAGE` não chegam ao modelo; o contrato rejeita colunas fora do esquema |
+| Necessidade (minimização) | O modelo usa só variáveis financeiras: `ID`, `SEX`, `MARRIAGE`, `AGE` e `EDUCATION` não chegam a ele (ADR 08 e 13); o contrato rejeita colunas fora do esquema |
 | Finalidade | Dados de produção usados só para scoring e monitoramento; nenhum uso secundário |
 | Qualidade dos dados | O contrato de dados **é** a implementação deste princípio |
 | Segurança | Dados brutos fora do Git (`.gitignore`); relatórios versionados não contêm linhas individuais |
@@ -432,9 +449,50 @@ crédito. Consequências para este projeto:
 
 ### 6. Mitigação de vieses
 
-> 🟡 **A preencher na Etapa 1** com números medidos: taxa de aprovação e recall por grupo
-> de `SEX`, `AGE` (faixas) e `EDUCATION`, razão de impacto desigual (regra dos 4/5) e o
-> resultado da ablação de `AGE`/`EDUCATION`.
+**1. Minimização por evidência (ADR 13).** Antes de rodar, ficou declarado que um
+atributo pessoal só fica no modelo se pagar por si (perda < 0,01 de AUC na validação ao
+removê-lo). Resultado: sem `AGE` e `EDUCATION`, a AUC de validação foi de 0,7602 para
+0,7622. Os dois saíram, e o modelo usa só dados financeiros.
+
+> ⚠️ No teste, a mesma remoção custou 0,011 de AUC (0,7479 para 0,7368). A decisão é
+> tomada na validação, e o teste só reporta. Detalhes no [Model Card](docs/MODEL_CARD.md#-ablação-de-age-e-education-adr-13).
+
+**2. Auditoria do resultado por grupo** (teste, n = 2.248, modelo promovido). Fonte:
+[`reports/model/fairness_audit.json`](reports/model/fairness_audit.json).
+
+| Atributo | Menor razão de impacto | Menor razão entre bons pagadores | Abaixo de 4/5? |
+|----------|------------------------|----------------------------------|----------------|
+| `SEX` | 0,937 | 0,984 | Não |
+| `AGE` (faixas) | 0,939 | 0,956 | Não |
+| `EDUCATION` | 0,872 | **0,864** | Não |
+| `MARRIAGE` | 0,961 | 0,963 | Não |
+
+A razão entre bons pagadores é a leitura principal. Ela compara a aprovação de quem
+**não** ficou inadimplente: um bom pagador tem a mesma chance em qualquer grupo?
+
+**O que os números dizem:**
+
+- **Nenhum grupo fica abaixo da regra dos 4/5.**
+- **O ponto de atenção é a escolaridade "ensino médio":**
+  - Com a mesma inadimplência real da pós-graduação (cerca de 21%), bons pagadores desse
+    grupo são aprovados em 73,1% dos casos, contra 84,7%.
+  - O grupo tem metade do limite mediano e mais atraso recente. São variáveis financeiras
+    legítimas, mas correlacionadas com escolaridade.
+  - **Remover `EDUCATION` não removeu a diferença:** na validação, a razão foi de 0,87 para
+    0,82. Tirar o atributo não basta; é preciso medir o resultado.
+- **Sexo:** o modelo identifica menos inadimplentes entre mulheres (recall 51% contra 62%).
+  Isso favorece a aprovação delas sem prejudicar bons pagadores.
+
+**3. Mitigação:**
+
+- Atributos pessoais fora das features.
+- Auditoria por grupo reexecutada a cada treino.
+- Revisão humana das recusas (art. 20).
+- 🟡 Razões por grupo acompanhadas por lote no monitoramento (Etapa 3).
+- **Descartado:** limiar diferente por grupo, porque exigiria usar o atributo protegido na
+  própria decisão.
+
+Tabela completa por grupo no [Model Card](docs/MODEL_CARD.md#️-vieses-e-equidade).
 
 ---
 

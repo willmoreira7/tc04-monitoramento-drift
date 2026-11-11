@@ -1,0 +1,217 @@
+{
+  "model": "xgboost",
+  "features": [
+    "LIMIT_BAL",
+    "PAY_0",
+    "PAY_2",
+    "PAY_3",
+    "PAY_4",
+    "PAY_5",
+    "PAY_6",
+    "BILL_AMT1",
+    "BILL_AMT2",
+    "BILL_AMT3",
+    "BILL_AMT4",
+    "BILL_AMT5",
+    "BILL_AMT6",
+    "PAY_AMT1",
+    "PAY_AMT2",
+    "PAY_AMT3",
+    "PAY_AMT4",
+    "PAY_AMT5",
+    "PAY_AMT6"
+  ],
+  "threshold": 0.255594,
+  "evaluated_on": "test",
+  "rows": 2248,
+  "criterion": {
+    "attributes": [
+      "SEX",
+      "AGE",
+      "EDUCATION",
+      "MARRIAGE"
+    ],
+    "age_bins": [
+      18,
+      30,
+      40,
+      50,
+      101
+    ],
+    "impact_ratio_min": 0.8,
+    "min_group_size": 100
+  },
+  "attributes": {
+    "SEX": {
+      "groups": [
+        {
+          "group": "masculino",
+          "n": 909,
+          "conclusive": true,
+          "default_rate": 0.2431,
+          "approval_rate": 0.7008,
+          "good_payer_approval": 0.8023,
+          "recall_default": 0.6154,
+          "impact_ratio": 0.9374,
+          "good_payer_ratio": 0.9839
+        },
+        {
+          "group": "feminino",
+          "n": 1339,
+          "conclusive": true,
+          "default_rate": 0.2069,
+          "approval_rate": 0.7476,
+          "good_payer_approval": 0.8154,
+          "recall_default": 0.5126,
+          "impact_ratio": 1.0,
+          "good_payer_ratio": 1.0
+        }
+      ],
+      "min_impact_ratio": 0.9374,
+      "min_good_payer_ratio": 0.9839,
+      "below_four_fifths": false
+    },
+    "AGE": {
+      "groups": [
+        {
+          "group": "18-29",
+          "n": 779,
+          "conclusive": true,
+          "default_rate": 0.2336,
+          "approval_rate": 0.7125,
+          "good_payer_approval": 0.7973,
+          "recall_default": 0.5659,
+          "impact_ratio": 0.9575,
+          "good_payer_ratio": 0.9668
+        },
+        {
+          "group": "30-39",
+          "n": 805,
+          "conclusive": true,
+          "default_rate": 0.2062,
+          "approval_rate": 0.7441,
+          "good_payer_approval": 0.8247,
+          "recall_default": 0.5663,
+          "impact_ratio": 1.0,
+          "good_payer_ratio": 1.0
+        },
+        {
+          "group": "40-49",
+          "n": 475,
+          "conclusive": true,
+          "default_rate": 0.2063,
+          "approval_rate": 0.7411,
+          "good_payer_approval": 0.8143,
+          "recall_default": 0.5408,
+          "impact_ratio": 0.996,
+          "good_payer_ratio": 0.9874
+        },
+        {
+          "group": "50+",
+          "n": 189,
+          "conclusive": true,
+          "default_rate": 0.2751,
+          "approval_rate": 0.6984,
+          "good_payer_approval": 0.7883,
+          "recall_default": 0.5385,
+          "impact_ratio": 0.9386,
+          "good_payer_ratio": 0.9559
+        }
+      ],
+      "min_impact_ratio": 0.9386,
+      "min_good_payer_ratio": 0.9559,
+      "below_four_fifths": false
+    },
+    "EDUCATION": {
+      "groups": [
+        {
+          "group": "pos-graduacao",
+          "n": 821,
+          "conclusive": true,
+          "default_rate": 0.2144,
+          "approval_rate": 0.7588,
+          "good_payer_approval": 0.8465,
+          "recall_default": 0.5625,
+          "impact_ratio": 1.0,
+          "good_payer_ratio": 1.0
+        },
+        {
+          "group": "universidade",
+          "n": 1040,
+          "conclusive": true,
+          "default_rate": 0.2365,
+          "approval_rate": 0.7231,
+          "good_payer_approval": 0.8048,
+          "recall_default": 0.5407,
+          "impact_ratio": 0.953,
+          "good_payer_ratio": 0.9507
+        },
+        {
+          "group": "ensino medio",
+          "n": 358,
+          "conclusive": true,
+          "default_rate": 0.2095,
+          "approval_rate": 0.662,
+          "good_payer_approval": 0.7314,
+          "recall_default": 0.6,
+          "impact_ratio": 0.8724,
+          "good_payer_ratio": 0.864
+        },
+        {
+          "group": "outros",
+          "n": 29,
+          "conclusive": false,
+          "default_rate": 0.0345,
+          "approval_rate": 0.8966,
+          "good_payer_approval": 0.9286,
+          "recall_default": 1.0,
+          "impact_ratio": 1.1816,
+          "good_payer_ratio": 1.097
+        }
+      ],
+      "min_impact_ratio": 0.8724,
+      "min_good_payer_ratio": 0.864,
+      "below_four_fifths": false
+    },
+    "MARRIAGE": {
+      "groups": [
+        {
+          "group": "casado",
+          "n": 1009,
+          "conclusive": true,
+          "default_rate": 0.222,
+          "approval_rate": 0.7116,
+          "good_payer_approval": 0.7924,
+          "recall_default": 0.5714,
+          "impact_ratio": 0.9612,
+          "good_payer_ratio": 0.9625
+        },
+        {
+          "group": "solteiro",
+          "n": 1213,
+          "conclusive": true,
+          "default_rate": 0.2209,
+          "approval_rate": 0.7403,
+          "good_payer_approval": 0.8233,
+          "recall_default": 0.5522,
+          "impact_ratio": 1.0,
+          "good_payer_ratio": 1.0
+        },
+        {
+          "group": "outros",
+          "n": 26,
+          "conclusive": false,
+          "default_rate": 0.2308,
+          "approval_rate": 0.8462,
+          "good_payer_approval": 0.9,
+          "recall_default": 0.3333,
+          "impact_ratio": 1.1431,
+          "good_payer_ratio": 1.0932
+        }
+      ],
+      "min_impact_ratio": 0.9612,
+      "min_good_payer_ratio": 0.9625,
+      "below_four_fifths": false
+    }
+  }
+}

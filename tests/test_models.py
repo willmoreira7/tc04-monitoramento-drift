@@ -56,8 +56,9 @@ def test_max_ks_threshold_separates_classes() -> None:
 
 def test_sensitive_and_key_columns_never_become_features(split) -> None:
     features = feature_columns(split.train, CONFIG)
-    assert not {"ID", "SEX", "MARRIAGE", TARGET_COLUMN} & set(features)
-    assert len(features) == 21
+    # ADR 08 (SEX, MARRIAGE) e ADR 13 (AGE, EDUCATION removidos pela ablacao)
+    assert not {"ID", "SEX", "MARRIAGE", "AGE", "EDUCATION", TARGET_COLUMN} & set(features)
+    assert len(features) == 19
 
 
 def test_trained_candidates_beat_dummy_on_synthetic(split) -> None:

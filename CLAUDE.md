@@ -90,6 +90,7 @@ uv run python scripts/download_data.py --synthetic     # fallback sintético (me
 uv run python scripts/verify_setup.py                  # diagnóstico do ambiente
 uv run python scripts/prepare_data.py                  # limpeza + split ref × produção (--synthetic)
 uv run python scripts/train_model.py                   # treina, compara e promove (ADR 04)
+uv run python scripts/audit_model.py                   # ablação AGE/EDUCATION + viés por grupo (ADR 13)
 uv run python scripts/validate_batch.py --demo valid   # contrato: lote válido passa (exit 0)
 uv run python scripts/validate_batch.py --demo corrupted  # lote corrompido bloqueado (exit 2)
 uv run jupyter lab notebooks/                          # notebooks (versionados com saídas)
@@ -126,9 +127,9 @@ Variáveis úteis: `TC04_LOG_FORMAT=json` (logs em JSON) · `MLFLOW_DISABLE_AGEN
 - Biblioteca de contrato: Pandera — ✅ (ADR 02). Relatório em JSON agregado (não HTML). Falha → regra mapeada no próprio contrato, porque o `name=` das checks não aparece em `failure_cases`. Exit codes: 0 aprovado · 1 dados ausentes · 2 bloqueado
 - Rastreamento da Etapa 3: MLflow local (SQLite) + dashboard HTML estático — 🟡 proposta (ADR 05)
 - Limiares de drift: PSI ≥ 0,10 atenção · PSI ≥ 0,25 crítico · KS confirma — 🟡 proposta
-- Promoção (ADR 04, ✅): AUC ≥ 0,70 e > Dummy **na validação**; empate (Δ < 0,01) → LogReg. Promovido: XGBoost (val 0,7602 · teste 0,7479), limiar 0,2533 por máximo KS. Sem busca de hiperparâmetros, por decisão
+- Promoção (ADR 04, ✅): AUC ≥ 0,70 e > Dummy **na validação**; empate (Δ < 0,01) → LogReg. Promovido: XGBoost (val 0,7622 · teste 0,7368), limiar 0,2556 por máximo KS, 19 features só financeiras. Sem busca de hiperparâmetros, por decisão
 - Relatórios gerados sobre o sintético usam `*.synthetic.*` e são ignorados pelo Git: nunca sobrescrevem a evidência real
-- `SEX` e `MARRIAGE` fora das features; `AGE` e `EDUCATION` decididos por ablação na Etapa 1
+- `SEX` e `MARRIAGE` fora das features (ADR 08); `AGE` e `EDUCATION` removidos pela ablação (ADR 13, ✅): sem eles a AUC val. foi de 0,7602 para 0,7622; no teste caiu 0,011, o que está documentado e não reverte a decisão. Auditoria de viés: nenhum grupo abaixo de 4/5; ponto de atenção em escolaridade "ensino médio" (0,864 entre bons pagadores)
 - Versões travadas (2026-11-07): Python 3.12 · pandas 2.3.3 · numpy 2.5.4 · scikit-learn
   1.9.1 · xgboost 3.4.1 · pandera 0.35.0 · evidently 0.7.23 · mlflow 3.18.0
 - **pandas fixado em `<3`**: o Evidently 0.7.23 importa `infer_dtype_from_object`, removida no

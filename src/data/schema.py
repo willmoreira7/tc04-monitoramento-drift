@@ -36,6 +36,13 @@ RAW_TO_NAMED = {
 # Atributos usados apenas na auditoria de vies, nunca como feature (ADR 08).
 AUDIT_ONLY_COLUMNS = ["SEX", "MARRIAGE"]
 
+# Dicionario da UCI para os atributos categoricos (apos a limpeza da referencia).
+CATEGORY_LABELS = {
+    "SEX": {1: "masculino", 2: "feminino"},
+    "EDUCATION": {1: "pos-graduacao", 2: "universidade", 3: "ensino medio", 4: "outros"},
+    "MARRIAGE": {1: "casado", 2: "solteiro", 3: "outros"},
+}
+
 
 def rename_raw_columns(frame: pd.DataFrame) -> pd.DataFrame:
     """Renomeia ``X1..X23, Y`` para os nomes do dicionario da UCI.

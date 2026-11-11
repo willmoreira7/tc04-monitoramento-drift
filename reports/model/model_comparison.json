@@ -6,8 +6,6 @@
   },
   "features": [
     "LIMIT_BAL",
-    "EDUCATION",
-    "AGE",
     "PAY_0",
     "PAY_2",
     "PAY_3",
@@ -55,38 +53,38 @@
     },
     {
       "name": "logistic_regression",
-      "threshold": 0.262378,
+      "threshold": 0.248362,
       "validation": {
-        "auc": 0.7057,
-        "ks": 0.3901,
-        "recall_default": 0.5392,
-        "precision_default": 0.5066,
-        "approval_rate": 0.7646
+        "auc": 0.7081,
+        "ks": 0.3931,
+        "recall_default": 0.5594,
+        "precision_default": 0.4886,
+        "approval_rate": 0.7468
       },
       "test": {
-        "auc": 0.7206,
-        "ks": 0.3862,
-        "recall_default": 0.5442,
-        "precision_default": 0.4892,
-        "approval_rate": 0.7536
+        "auc": 0.7183,
+        "ks": 0.3938,
+        "recall_default": 0.5582,
+        "precision_default": 0.476,
+        "approval_rate": 0.7402
       }
     },
     {
       "name": "xgboost",
-      "threshold": 0.253256,
+      "threshold": 0.255594,
       "validation": {
-        "auc": 0.7602,
-        "ks": 0.4207,
-        "recall_default": 0.5915,
-        "precision_default": 0.4958,
-        "approval_rate": 0.7361
+        "auc": 0.7622,
+        "ks": 0.4133,
+        "recall_default": 0.6036,
+        "precision_default": 0.4739,
+        "approval_rate": 0.7183
       },
       "test": {
-        "auc": 0.7479,
-        "ks": 0.3726,
-        "recall_default": 0.5522,
-        "precision_default": 0.4464,
-        "approval_rate": 0.726
+        "auc": 0.7368,
+        "ks": 0.3779,
+        "recall_default": 0.5582,
+        "precision_default": 0.4557,
+        "approval_rate": 0.7286
       }
     }
   ]

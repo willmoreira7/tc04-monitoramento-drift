@@ -135,6 +135,48 @@ o script sai com exit code 2 e o lote fica em `data/quarantine/<batch_id>/`.
 
 ---
 
+## 🧪 Decisão 13 — `AGE` e `EDUCATION` fora do modelo, por ablação
+
+**Contexto.** `SEX` e `MARRIAGE` saíram por princípio (ADR 08). `AGE` e `EDUCATION` ficaram
+em aberto: a idade é exigida pelo contrato (C4) e a escolaridade é proxy socioeconômico,
+mas ambos podiam carregar sinal de risco.
+
+**Critério, declarado antes de rodar** (commit `chore(config)` separado, anterior ao código
+da ablação; `configs/pipeline.yaml`, seção `ablation`):
+
+- Minimização (LGPD art. 6º, III): um atributo pessoal só fica se pagar por si.
+- Remove-se o conjunto se a variante sem ele perder menos de 0,01 de AUC na validação,
+  com o modelo promovido pelo próprio critério do ADR 04 em cada variante.
+- Senão, cada atributo é avaliado sozinho com o mesmo limiar.
+
+**Resultado** ([`reports/model/ablation.json`](../reports/model/ablation.json)):
+
+| Variante | AUC val. (promovido: XGBoost em todas) | Perda |
+|----------|----------------------------------------|-------|
+| Com os dois | 0,7602 | — |
+| Sem `AGE` | 0,7577 | 0,0025 |
+| Sem `EDUCATION` | 0,7611 | −0,0009 |
+| Sem os dois | 0,7622 | −0,0020 |
+
+**Decisão: os dois saem.** ✅ Aceita. O modelo passa a usar só as 19 variáveis financeiras.
+Os atributos continuam no lote: `AGE` para o contrato e ambos para a auditoria de viés.
+
+**O que pesa contra, dito com franqueza:**
+
+- **No teste, a remoção custou 0,011 de AUC** (0,7479 para 0,7368), no sentido oposto ao da
+  validação. A regra decide na validação. A diferença está dentro do ruído de um split
+  único, e reverter olhando o teste seria escolher pelo resultado.
+- **Tirar `EDUCATION` não tirou a diferença por escolaridade.** Na validação, a razão de
+  impacto por escolaridade foi de 0,87 para 0,82: limite de crédito e atraso recente
+  carregam parte da informação. Por isso a auditoria mede o **resultado** por grupo, e a
+  remoção de feature não é tratada como garantia de equidade (ver
+  [Model Card](MODEL_CARD.md#️-vieses-e-equidade)).
+
+**Descartado:** limiar de decisão diferente por grupo. Exigiria usar o atributo protegido
+na própria decisão, e nenhum grupo ficou abaixo da regra dos 4/5.
+
+---
+
 ## 📌 Registro de Decisões (ADR resumido)
 
 | # | Decisão | Status | Motivo principal |
@@ -146,11 +188,12 @@ o script sai com exit code 2 e o lote fica em `data/quarantine/<batch_id>/`.
 | 05 | MLflow + dashboard HTML versionado | 🟡 Proposta | Etapa 3 sem infraestrutura; evidência visível sem rodar |
 | 06 | Lote inválido bloqueado por inteiro | ✅ Aceita | Não mascarar falha de origem nem distorcer o drift |
 | 07 | Split referência × produção único, 50/50, estratificado | 🟡 Proposta | Separação exigida; M01 de controle mede falso positivo |
-| 08 | `SEX` e `MARRIAGE` fora das features | 🟡 Proposta | LGPD art. 6º, III (necessidade) e IX (não discriminação) |
+| 08 | `SEX` e `MARRIAGE` fora das features | ✅ Aceita | LGPD art. 6º, III (necessidade) e IX (não discriminação) |
 | 09 | Dataset UCI Default of Credit Card Clients | ✅ Aceita | Licença CC BY 4.0 compatível com uso acadêmico e com a simulação de drift; ≥ 5.000 linhas; download sem conta; atributos para auditoria de viés. Home Credit descartado pelos termos de uso (ADR 12) |
 | 10 | `uv run` como único runner documentado | ✅ Aceita | Lição do TC01: comandos que dependem de ferramenta não versionada falham |
 | 11 | Contrato valida colunas brutas; features derivadas depois | ✅ Aceita | Regras de origem (códigos fora do dicionário) só são visíveis no dado bruto |
 | 12 | Termos de uso verificados antes de adotar qualquer dataset; Home Credit descartado | ✅ Aceita | As regras da competição limitam o uso "only for the purposes of the Competition" e proíbem manipular os dados. Ver [README — Origem dos dados](../README.md#1-origem-dos-dados-e-termos-de-uso) e [DATASET.md](DATASET.md#-por-que-não-o-home-credit) |
+| 13 | `AGE` e `EDUCATION` fora das features, por ablação | ✅ Aceita | Sem eles a AUC val. não cai (0,7602 → 0,7622); minimização (art. 6º, III). No teste caiu 0,011, documentado. A remoção não eliminou a diferença por escolaridade, então a auditoria mede o resultado |
 
 ---
 

@@ -10,7 +10,7 @@
 | Etapa | Disciplina | Peso relacionado | Status |
 |-------|-----------|------------------|--------|
 | [0 — Fundação](#-etapa-0--fundação-do-repositório) | — | — | ✅ Concluída |
-| [1 — Validação de Dados](#-etapa-1--validação-de-dados-e-contratos) | Validação de Dados e Bibliotecas de Qualidade | 25% | 🟡 Em andamento (falta viés/ablação) |
+| [1 — Validação de Dados](#-etapa-1--validação-de-dados-e-contratos) | Validação de Dados e Bibliotecas de Qualidade | 25% | ✅ Concluída |
 | [2 — Drift](#-etapa-2--simulação-e-detecção-de-drift) | Data Drift | 25% | ⬜ Não iniciada |
 | [3 — Observabilidade](#-etapa-3--observabilidade-de-pipelines-e-modelos) | Monitoramento de Pipelines e Infraestrutura | 20% | ⬜ Não iniciada |
 | [4 — Governança e Entrega](#%EF%B8%8F-etapa-4--governança-causalidade-e-entrega) | Privacy by Design e by Default | 15% + 15% (vídeo) | ⬜ Não iniciada |
@@ -126,10 +126,10 @@ os problemas dos Tech Challenges anteriores.
 - [x] Escrever o contrato Pandera com as regras de [DATA_CONTRACTS.md](DATA_CONTRACTS.md)
 - [x] Validar a referência e o pool contra o contrato **antes** de gravá-los (sem eles o treino não roda)
 - [x] Treinar Dummy, LogisticRegression e XGBoost no mesmo split; promover pelo critério declarado (XGBoost — ver [MODEL_CARD.md](MODEL_CARD.md))
-- [ ] Auditoria de viés e ablação de `AGE` / `EDUCATION` → decisão registrada em ADR
+- [x] Auditoria de viés e ablação de `AGE` / `EDUCATION` → ambos removidos (ADR 13); nenhum grupo abaixo de 4/5
 - [x] Gerar lote corrompido e demonstrar o **bloqueio** (quarentena + exit code 2 + log `status=blocked` + alerta crítico)
 - [x] Relatório de validação em `reports/validation/` (JSON agregado, versionado — ADR 02)
-- [x] Preencher a primeira versão do [MODEL_CARD.md](MODEL_CARD.md) (performance e comparação; viés pendente)
+- [x] Preencher o [MODEL_CARD.md](MODEL_CARD.md): performance, comparação, ablação e viés (drift fica na Etapa 2)
 
 ### 📦 Entregável
 
@@ -140,8 +140,8 @@ Script de validação de dados operante + modelo baseline treinado.
 - [x] Lote corrompido é rejeitado e vai para quarentena · 🟡 "nenhuma predição" reforçado com teste na Etapa 2, quando a predição entrar no pipeline
 - [x] Cada regra crítica tem teste com caso válido e inválido (16 casos inválidos cobrindo C1–C8)
 - [x] Teste automatizado prova que nenhuma linha do pool de produção está no treino (por `ID` e por conteúdo)
-- [x] Modelo promovido supera o Dummy e atende ao gate declarado (AUC val. 0,7602 ≥ 0,70)
-- [ ] Seção "Como Executar" do README atualizada e executada num clone limpo
+- [x] Modelo promovido supera o Dummy e atende ao gate declarado (AUC val. 0,7622 ≥ 0,70)
+- [x] Seção "Como Executar" do README atualizada e executada num clone limpo
 
 ---
 

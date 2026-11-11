@@ -1,0 +1,8 @@
+{
+  "batch_id": "demo_valid",
+  "status": "passed",
+  "rows": 2400,
+  "rules_violated": [],
+  "critical": [],
+  "warnings": []
+}

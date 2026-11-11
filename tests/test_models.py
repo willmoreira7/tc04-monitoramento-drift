@@ -21,6 +21,7 @@ from src.models.train import (
 )
 from src.pipeline import prepare
 from src.pipeline import train as train_stage
+from src.pipeline.io import report_name
 
 SEED = 42
 CONFIG = load_config()["model"]
@@ -101,7 +102,9 @@ def test_train_stage_writes_model_metadata_and_report(
     generate_synthetic(4_000, seed=SEED).to_csv(raw_file, index=False)
     monkeypatch.setattr(prepare, "source_path", lambda source: raw_file)
     monkeypatch.setattr("src.data.loader.synthetic_dataset_path", lambda: raw_file)
-    prepare.prepare_data(prepare.DataSource.SYNTHETIC, tmp_path / "ref", tmp_path / "prod")
+    prepare.prepare_data(
+        prepare.DataSource.SYNTHETIC, tmp_path / "ref", tmp_path / "prod", tmp_path / "validation"
+    )
 
     summary = train_stage.train_model(tmp_path / "ref", tmp_path / "model", tmp_path / "report")
 
@@ -109,7 +112,7 @@ def test_train_stage_writes_model_metadata_and_report(
     test = pd.read_parquet(tmp_path / "ref" / "test.parquet")
     scores = model.predict_proba(test[summary["features"]])[:, 1]
     assert ((scores >= 0) & (scores <= 1)).all()
-    report_file = tmp_path / "report" / train_stage.comparison_file("synthetic")
+    report_file = tmp_path / "report" / report_name(train_stage.COMPARISON_FILE, "synthetic")
     assert report_file.name == "model_comparison.synthetic.json"
     assert not (tmp_path / "report" / train_stage.COMPARISON_FILE).exists()
     report = json.loads(report_file.read_text())

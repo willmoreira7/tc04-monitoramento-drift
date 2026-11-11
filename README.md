@@ -128,15 +128,16 @@ tc04-monitoramento-drift/
 │   ├── download_data.py        # ✅ Dataset real (SHA256) ou sintético
 │   ├── prepare_data.py         # ✅ Limpeza e split referência × produção
 │   ├── train_model.py          # ✅ Treina, compara e promove o modelo (ADR 04)
+│   ├── validate_batch.py       # ✅ Demonstra o contrato: lote válido passa, corrompido é bloqueado
 │   └── verify_setup.py         # ✅ Diz se o ambiente está pronto e o que falta
 ├── src/
 │   ├── config.py               # ✅ Caminhos, seed e configuração
 │   ├── data/                   # ✅ Esquema, download, sintético, carga, limpeza e split
-│   ├── contracts/              # ⬜ Schemas Pandera e validação (Etapa 1)
+│   ├── contracts/              # ✅ Contrato Pandera (C1–C8), avisos e lote corrompido
 │   ├── models/                 # ✅ Candidatos, métricas (AUC, KS) e critério de promoção
 │   ├── drift/                  # ⬜ Simulação e detecção (Etapa 2)
 │   ├── monitoring/             # ✅ Logging (structlog) · ⬜ métricas e alertas (Etapa 3)
-│   └── pipeline/               # ✅ Preparo e treino · ⬜ demais estágios
+│   └── pipeline/               # ✅ Preparo, validação e treino · ⬜ demais estágios
 ├── tests/                      # ✅ pytest, sem dependência de rede
 └── .github/workflows/          # ✅ CI: lint → testes · dataset real · commitlint
 ```
@@ -217,6 +218,12 @@ split **uma única vez**, estratificado e com seed 42:
 Contagens, taxas e o SHA256 de origem ficam em `data/reference/split_metadata.json`. As
 decisões de limpeza estão justificadas no notebook de EDA.
 
+Antes de gravar, referência e pool passam pelo **contrato de dados**: se a limpeza deixar
+passar algo inválido, nada é gravado e o treino não roda. Resultado em
+[`reports/validation/reference.json`](reports/validation/reference.json) e
+[`production_pool.json`](reports/validation/production_pool.json): ambos aprovados, com
+um aviso W1 (faturas abaixo de −100 mil, que é um aviso e não bloqueia).
+
 ### 3. Análise exploratória
 
 O notebook [`notebooks/01_eda.ipynb`](notebooks/01_eda.ipynb) está versionado **com as
@@ -226,7 +233,31 @@ saídas**: dá para lê-lo direto no GitHub, sem executar nada. Para reexecutar:
 uv run jupyter lab notebooks/
 ```
 
-### 4. Modelo base
+### 4. Contrato de dados: lote válido × lote corrompido
+
+```bash
+uv run python scripts/validate_batch.py --demo valid       # aprovado → exit 0
+uv run python scripts/validate_batch.py --demo corrupted   # bloqueado → exit 2
+```
+
+Os dois lotes partem de uma amostra do pool de produção. No corrompido (500 linhas) são
+injetados defeitos declarados em [`configs/pipeline.yaml`](configs/pipeline.yaml). O
+contrato coleta **todas** as violações de uma vez, move o lote inteiro para
+`data/quarantine/demo_corrupted/` e encerra com exit code ≠ 0. O lote não chega ao modelo.
+
+| Defeito injetado | Regra | Casos |
+|------------------|-------|-------|
+| Coluna extra `CPF` (valor fictício) | C1 — esquema exato | 1 coluna |
+| `LIMIT_BAL` nulo | C2 — sem nulos (e C1: tipo) | 5 |
+| `ID` repetido | C3 — chave única | 10 |
+| `AGE` = 15 e 130 | C4 — idade entre 18 e 100 | 5 |
+| `EDUCATION` = 7 | C6 — código no dicionário | 5 |
+| `PAY_AMT1` negativo | C8 — pagamento ≥ 0 | 5 |
+
+Relatório: [`reports/validation/demo_corrupted.json`](reports/validation/demo_corrupted.json).
+As 8 regras críticas e os 4 avisos estão em [docs/DATA_CONTRACTS.md](docs/DATA_CONTRACTS.md).
+
+### 5. Modelo base
 
 ```bash
 uv run python scripts/train_model.py
@@ -246,7 +277,7 @@ O modelo vai para `models/baseline/` (não versionado); a comparação completa 
 [`reports/model/model_comparison.json`](reports/model/model_comparison.json) (versionado).
 Leitura dos resultados e limitações no [Model Card](docs/MODEL_CARD.md).
 
-### 5. Testes e qualidade de código
+### 6. Testes e qualidade de código
 
 ```bash
 uv run pytest
@@ -272,7 +303,7 @@ validar mensagens de commit. Ver [docs/COMMITLINT.md](docs/COMMITLINT.md).
 | Etapa | Disciplina | Entregável | Status |
 |-------|-----------|-----------|--------|
 | **0** | — | Documentação, regras, ambiente, download do dataset e CI | ✅ Concluída |
-| **1** | Validação de Dados e Bibliotecas de Qualidade | Contrato Pandera + lote ruim bloqueado + modelo baseline | ⬜ Não iniciada |
+| **1** | Validação de Dados e Bibliotecas de Qualidade | Contrato Pandera + lote ruim bloqueado + modelo baseline | 🟡 Em andamento (falta viés/ablação) |
 | **2** | Data Drift | Lotes simulados + relatórios Evidently (PSI/KS) | ⬜ Não iniciada |
 | **3** | Monitoramento de Pipelines e Infraestrutura | Logs centralizados + MLflow + dashboard | ⬜ Não iniciada |
 | **4** | Privacy by Design e by Default | Governança LGPD + análise causal + vídeo STAR | ⬜ Não iniciada |
@@ -443,4 +474,4 @@ intervenção, não uma correlação.
 
 ---
 
-**Última atualização:** 2026-11-07
+**Última atualização:** 2026-11-10

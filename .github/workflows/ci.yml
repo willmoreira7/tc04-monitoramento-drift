@@ -1,7 +1,7 @@
 # CI: executa os MESMOS comandos documentados no README (regra .claude/rules/entrega.md).
 #
 #   lint ──► test
-#   data           (baixa o dataset real da UCI e confere o SHA256)
+#   data           (dataset real da UCI: SHA256, pipeline e relatorios reproduzidos)
 #   commitlint     (so em pull request)
 
 name: CI
@@ -73,6 +73,19 @@ jobs:
       - name: Treinar e promover o modelo (sintetico)
         run: uv run python scripts/train_model.py
 
+      - name: Contrato - lote valido aprovado (sintetico)
+        run: uv run python scripts/validate_batch.py --demo valid
+
+      # O lote corrompido PRECISA ser bloqueado: exit 2. Qualquer outro codigo falha o job.
+      - name: Contrato - lote corrompido bloqueado (sintetico)
+        shell: bash
+        run: |
+          set +e
+          uv run python scripts/validate_batch.py --demo corrupted
+          code=$?
+          echo "exit code: $code"
+          test "$code" -eq 2
+
       - name: pytest
         run: uv run pytest --cov=src --cov-report=term-missing
 
@@ -102,6 +115,23 @@ jobs:
 
       - name: Treinar e promover o modelo (dataset real)
         run: uv run python scripts/train_model.py
+
+      - name: Contrato - lote valido aprovado (dataset real)
+        run: uv run python scripts/validate_batch.py --demo valid
+
+      # O lote corrompido PRECISA ser bloqueado: exit 2. Qualquer outro codigo falha o job.
+      - name: Contrato - lote corrompido bloqueado (dataset real)
+        shell: bash
+        run: |
+          set +e
+          uv run python scripts/validate_batch.py --demo corrupted
+          code=$?
+          echo "exit code: $code"
+          test "$code" -eq 2
+
+      # Evidencia versionada precisa ser reproduzida byte a byte num clone limpo.
+      - name: Relatorios versionados reproduzidos
+        run: git diff --exit-code reports/
 
   commitlint:
     name: Commitlint

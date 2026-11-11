@@ -4,14 +4,12 @@ Grava o artefato em ``models/baseline/`` (nao versionado) e a comparacao em
 ``reports/model/model_comparison.json`` (versionado: so metricas agregadas).
 """
 
-import json
 import time
 from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 
 import joblib
-import pandas as pd
 
 from src.config import MODELS_DIR, REFERENCE_DIR, REPORTS_DIR, get_seed, load_config
 from src.models.train import (
@@ -22,8 +20,7 @@ from src.models.train import (
     train_candidates,
 )
 from src.monitoring.log import get_logger
-from src.pipeline.io import write_json
-from src.pipeline.prepare import METADATA_FILE
+from src.pipeline.io import read_prepared, read_split_metadata, report_name, write_json
 
 logger = get_logger(__name__)
 
@@ -45,7 +42,7 @@ def train_model(
     started = time.perf_counter()
     config = load_config()["model"]
     train, validation, test = (
-        _read(reference_dir, name) for name in ("train", "validation", "test")
+        read_prepared(reference_dir / f"{name}.parquet") for name in ("train", "validation", "test")
     )
     results = train_candidates(train, validation, config, get_seed())
     evaluate_on_test(results, test, config)
@@ -64,19 +61,10 @@ def train_model(
     return summary
 
 
-def _read(reference_dir: Path, name: str) -> pd.DataFrame:
-    path = reference_dir / f"{name}.parquet"
-    if not path.is_file():
-        raise FileNotFoundError(
-            f"{path} nao encontrado. Rode `uv run python scripts/prepare_data.py`."
-        )
-    return pd.read_parquet(path)
-
-
 def _summary(
     results: list[CandidateResult], promoted: CandidateResult, features: list[str], ref: Path
 ) -> dict[str, Any]:
-    split_metadata = json.loads((ref / METADATA_FILE).read_text(encoding="utf-8"))
+    split_metadata = read_split_metadata(ref)
     return {
         "promoted": promoted.name,
         "criterion": load_config()["model"]["promotion"],
@@ -105,16 +93,5 @@ def _write(
     joblib.dump(promoted.model, model_dir / MODEL_FILE)
     metadata = {**summary, "threshold": promoted.threshold}
     write_json(model_dir / MODEL_METADATA_FILE, metadata)
-    report = report_dir / comparison_file(summary["source"])
+    report = report_dir / report_name(COMPARISON_FILE, summary["source"])
     write_json(report, summary)
-
-
-def comparison_file(source: str) -> str:
-    """Nome do relatorio de comparacao por origem.
-
-    So o do dataset real e evidencia versionada; o do sintetico (``*.synthetic.json``) e
-    ignorado pelo Git e nunca sobrescreve o real.
-    """
-    return (
-        COMPARISON_FILE if source == "real" else COMPARISON_FILE.replace(".json", ".synthetic.json")
-    )

@@ -10,7 +10,7 @@
 | Etapa | Disciplina | Peso relacionado | Status |
 |-------|-----------|------------------|--------|
 | [0 — Fundação](#-etapa-0--fundação-do-repositório) | — | — | ✅ Concluída |
-| [1 — Validação de Dados](#-etapa-1--validação-de-dados-e-contratos) | Validação de Dados e Bibliotecas de Qualidade | 25% | ⬜ Não iniciada |
+| [1 — Validação de Dados](#-etapa-1--validação-de-dados-e-contratos) | Validação de Dados e Bibliotecas de Qualidade | 25% | 🟡 Em andamento (falta viés/ablação) |
 | [2 — Drift](#-etapa-2--simulação-e-detecção-de-drift) | Data Drift | 25% | ⬜ Não iniciada |
 | [3 — Observabilidade](#-etapa-3--observabilidade-de-pipelines-e-modelos) | Monitoramento de Pipelines e Infraestrutura | 20% | ⬜ Não iniciada |
 | [4 — Governança e Entrega](#%EF%B8%8F-etapa-4--governança-causalidade-e-entrega) | Privacy by Design e by Default | 15% + 15% (vídeo) | ⬜ Não iniciada |
@@ -37,8 +37,8 @@ Conferência item a item do que o enunciado exige. **Atualizar ao fechar cada et
 
 | Biblioteca | Uso exigido | Status |
 |-----------|-------------|--------|
-| Scikit-Learn / XGBoost | Modelo base de risco de crédito | ⬜ Etapa 1 |
-| Great Expectations **ou** Pandera | Data contracts | ⬜ Pandera — Etapa 1 |
+| Scikit-Learn / XGBoost | Modelo base de risco de crédito | ✅ Dummy · LogReg · XGBoost (promovido) |
+| Great Expectations **ou** Pandera | Data contracts | ✅ Pandera — [`src/contracts/`](../src/contracts/) |
 | Evidently AI (ou Alibi Detect) | Data/Concept Drift + relatórios | ⬜ Etapa 2 |
 | Prometheus-client | Opcional (integração com a Fase 3) | ⚪ Avaliar na Etapa 3 |
 
@@ -46,8 +46,8 @@ Conferência item a item do que o enunciado exige. **Atualizar ao fechar cada et
 
 | Prática | Exigência | Status |
 |---------|-----------|--------|
-| Separação referência × produção | Dataset de treino distinto do de análise | ⬜ Split 50/50 + teste anti-vazamento |
-| Regras rígidas de qualidade | ≥ 3 regras | ⬜ 8 regras críticas previstas em [DATA_CONTRACTS.md](DATA_CONTRACTS.md) |
+| Separação referência × produção | Dataset de treino distinto do de análise | ✅ Split 50/50 + testes anti-vazamento por `ID` e por conteúdo |
+| Regras rígidas de qualidade | ≥ 3 regras | ✅ 8 regras críticas (C1–C8) + 4 avisos; lote corrompido bloqueado — [DATA_CONTRACTS.md](DATA_CONTRACTS.md) |
 | Relatório estatístico de mudança de distribuição | PSI ou KS | ⬜ PSI + KS configurados explicitamente |
 | Documentação de compliance | Plano de privacidade LGPD | 🟡 No README |
 
@@ -123,12 +123,12 @@ os problemas dos Tech Challenges anteriores.
 - [x] EDA (`notebooks/01_eda.ipynb`): domínios reais, valores fora do dicionário, desbalanceamento
 - [x] Split único e estratificado referência × pool de produção (seed 42)
 - [x] Limpeza da referência: `EDUCATION` 0/5/6 → 4, `MARRIAGE` 0 → 3, 35 perfis duplicados removidos — ver [01_eda.ipynb](../notebooks/01_eda.ipynb)
-- [ ] Escrever o contrato Pandera com as regras de [DATA_CONTRACTS.md](DATA_CONTRACTS.md)
-- [ ] Validar a referência contra o contrato **antes** do treino
+- [x] Escrever o contrato Pandera com as regras de [DATA_CONTRACTS.md](DATA_CONTRACTS.md)
+- [x] Validar a referência e o pool contra o contrato **antes** de gravá-los (sem eles o treino não roda)
 - [x] Treinar Dummy, LogisticRegression e XGBoost no mesmo split; promover pelo critério declarado (XGBoost — ver [MODEL_CARD.md](MODEL_CARD.md))
 - [ ] Auditoria de viés e ablação de `AGE` / `EDUCATION` → decisão registrada em ADR
-- [ ] Gerar lote corrompido e demonstrar o **bloqueio** (quarentena + exit code ≠ 0 + log)
-- [ ] Relatório de validação em `reports/validation/`
+- [x] Gerar lote corrompido e demonstrar o **bloqueio** (quarentena + exit code 2 + log `status=blocked` + alerta crítico)
+- [x] Relatório de validação em `reports/validation/` (JSON agregado, versionado — ADR 02)
 - [x] Preencher a primeira versão do [MODEL_CARD.md](MODEL_CARD.md) (performance e comparação; viés pendente)
 
 ### 📦 Entregável
@@ -137,9 +137,9 @@ Script de validação de dados operante + modelo baseline treinado.
 
 ### ✅ Critério de aceite
 
-- [ ] Lote corrompido é rejeitado e **nenhuma predição** é gerada para ele
-- [ ] Cada regra crítica tem teste com caso válido e inválido
-- [ ] Teste automatizado prova que nenhuma linha do pool de produção está no treino
+- [x] Lote corrompido é rejeitado e vai para quarentena · 🟡 "nenhuma predição" reforçado com teste na Etapa 2, quando a predição entrar no pipeline
+- [x] Cada regra crítica tem teste com caso válido e inválido (16 casos inválidos cobrindo C1–C8)
+- [x] Teste automatizado prova que nenhuma linha do pool de produção está no treino (por `ID` e por conteúdo)
 - [x] Modelo promovido supera o Dummy e atende ao gate declarado (AUC val. 0,7602 ≥ 0,70)
 - [ ] Seção "Como Executar" do README atualizada e executada num clone limpo
 
@@ -246,4 +246,4 @@ Documentação completa de Governança e Causalidade no README + link do vídeo.
 
 ---
 
-**Última atualização:** 2026-11-07
+**Última atualização:** 2026-11-10

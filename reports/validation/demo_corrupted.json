@@ -1,0 +1,84 @@
+{
+  "batch_id": "demo_corrupted",
+  "status": "blocked",
+  "rows": 500,
+  "rules_violated": [
+    "C1",
+    "C2",
+    "C3",
+    "C4",
+    "C6",
+    "C8"
+  ],
+  "critical": [
+    {
+      "rule": "C1",
+      "column": null,
+      "check": "column_in_schema",
+      "cases": 1,
+      "examples": [
+        "CPF"
+      ]
+    },
+    {
+      "rule": "C1",
+      "column": "LIMIT_BAL",
+      "check": "dtype('int64')",
+      "cases": 5,
+      "examples": [
+        null
+      ]
+    },
+    {
+      "rule": "C2",
+      "column": "LIMIT_BAL",
+      "check": "not_nullable",
+      "cases": 5,
+      "examples": [
+        null
+      ]
+    },
+    {
+      "rule": "C3",
+      "column": "ID",
+      "check": "field_uniqueness",
+      "cases": 10,
+      "examples": [
+        11567,
+        11326,
+        25692
+      ]
+    },
+    {
+      "rule": "C4",
+      "column": "AGE",
+      "check": "in_range(18, 100)",
+      "cases": 5,
+      "examples": [
+        15,
+        130
+      ]
+    },
+    {
+      "rule": "C6",
+      "column": "EDUCATION",
+      "check": "isin([1, 2, 3, 4])",
+      "cases": 5,
+      "examples": [
+        7
+      ]
+    },
+    {
+      "rule": "C8",
+      "column": "PAY_AMT1",
+      "check": "greater_than_or_equal_to(0)",
+      "cases": 5,
+      "examples": [
+        -2851,
+        -1,
+        -4074
+      ]
+    }
+  ],
+  "warnings": []
+}

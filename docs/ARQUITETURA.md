@@ -40,9 +40,21 @@ esta fase avalia é a camada em volta dela.
 | Estabilidade da API | 🟡 Mudou o import recomendado em versões recentes | 🔴 Reescrita grande na 1.0 |
 
 **Decisão: Pandera.** O contrato é código: revisado em PR, testado com pytest e chamado
-pelas mesmas funções no notebook, no script e no CI. O que se perde é o Data Docs; o
-relatório de validação em HTML é gerado pelo projeto a partir das falhas coletadas. 🟡
-Proposta.
+pelas mesmas funções no notebook, no script e no CI. ✅ Aceita (Etapa 1).
+
+**Como ficou na implementação:**
+
+- O schema é montado a partir de `configs/pipeline.yaml` ([`src/contracts/schema.py`](../src/contracts/schema.py)).
+  Cada coluna carrega o identificador da regra (C4…C8), e as falhas estruturais do Pandera
+  (`column_in_schema`, `not_nullable`, `field_uniqueness`, `dtype`) são mapeadas para C1–C3.
+  Assim cada falha chega ao relatório com a regra de [DATA_CONTRACTS.md](DATA_CONTRACTS.md).
+- **O que se perdeu:** o Data Docs. Em troca, o relatório é um **JSON agregado** por lote
+  em `reports/validation/` (regra, coluna, nº de casos e até 3 valores de exemplo, nunca
+  linhas inteiras). A proposta original previa HTML; o JSON foi escolhido porque é
+  determinístico (diff limpo no Git) e é a entrada natural do dashboard da Etapa 3, que
+  fará a visualização.
+- O parâmetro `name=` das checks do Pandera **não** aparece em `failure_cases`. Por isso o
+  mapeamento falha → regra vive no próprio contrato, não no nome da check.
 
 ---
 
@@ -118,7 +130,8 @@ Prometheus/Grafana ficam como opcional, reaproveitando a Fase 3. 🟡 Proposta.
 Lote com violação crítica vai inteiro para quarentena; não há filtragem de linhas. Filtrar
 esconderia o problema de origem e alteraria a distribuição do lote, contaminando a
 detecção de drift seguinte. Ver [DATA_CONTRACTS.md](DATA_CONTRACTS.md#-comportamento-de-bloqueio).
-🟡 Proposta.
+✅ Aceita (Etapa 1): implementado em [`src/pipeline/validate.py`](../src/pipeline/validate.py);
+o script sai com exit code 2 e o lote fica em `data/quarantine/<batch_id>/`.
 
 ---
 
@@ -127,18 +140,18 @@ detecção de drift seguinte. Ver [DATA_CONTRACTS.md](DATA_CONTRACTS.md#-comport
 | # | Decisão | Status | Motivo principal |
 |---|---------|--------|------------------|
 | 01 | Pipeline em lote mensal | 🟡 Proposta | Monitoramento de carteira é por janela; reproduzível com um comando |
-| 02 | Pandera para contratos | 🟡 Proposta | Contrato como código, testável com pytest, dependência leve |
+| 02 | Pandera para contratos; relatório JSON agregado | ✅ Aceita | Contrato como código, testável com pytest, dependência leve; JSON determinístico alimenta o dashboard |
 | 03 | Evidently com PSI (decisão) + KS (confirmação) explícitos | 🟡 Proposta | Exigência do enunciado; padrão do Evidently não é PSI/KS |
 | 04 | Comparação enxuta: Dummy · LogReg · XGBoost padrão, sem busca de hiperparâmetros | ✅ Aceita | Modelo é o objeto monitorado, não critério de nota; escolha por evidência mínima e argumento de explicabilidade (LGPD art. 20) |
 | 05 | MLflow + dashboard HTML versionado | 🟡 Proposta | Etapa 3 sem infraestrutura; evidência visível sem rodar |
-| 06 | Lote inválido bloqueado por inteiro | 🟡 Proposta | Não mascarar falha de origem nem distorcer o drift |
+| 06 | Lote inválido bloqueado por inteiro | ✅ Aceita | Não mascarar falha de origem nem distorcer o drift |
 | 07 | Split referência × produção único, 50/50, estratificado | 🟡 Proposta | Separação exigida; M01 de controle mede falso positivo |
 | 08 | `SEX` e `MARRIAGE` fora das features | 🟡 Proposta | LGPD art. 6º, III (necessidade) e IX (não discriminação) |
 | 09 | Dataset UCI Default of Credit Card Clients | ✅ Aceita | Licença CC BY 4.0 compatível com uso acadêmico e com a simulação de drift; ≥ 5.000 linhas; download sem conta; atributos para auditoria de viés. Home Credit descartado pelos termos de uso (ADR 12) |
 | 10 | `uv run` como único runner documentado | ✅ Aceita | Lição do TC01: comandos que dependem de ferramenta não versionada falham |
-| 11 | Contrato valida colunas brutas; features derivadas depois | 🟡 Proposta | Regras de origem (códigos fora do dicionário) só são visíveis no dado bruto |
+| 11 | Contrato valida colunas brutas; features derivadas depois | ✅ Aceita | Regras de origem (códigos fora do dicionário) só são visíveis no dado bruto |
 | 12 | Termos de uso verificados antes de adotar qualquer dataset; Home Credit descartado | ✅ Aceita | As regras da competição limitam o uso "only for the purposes of the Competition" e proíbem manipular os dados. Ver [README — Origem dos dados](../README.md#1-origem-dos-dados-e-termos-de-uso) e [DATASET.md](DATASET.md#-por-que-não-o-home-credit) |
 
 ---
 
-**Última atualização:** 2026-11-07
+**Última atualização:** 2026-11-10

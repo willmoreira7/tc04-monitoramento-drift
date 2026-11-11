@@ -1,4 +1,7 @@
-"""Estagio de preparacao: carga -> limpeza -> split -> gravacao.
+"""Estagio de preparacao: carga -> limpeza -> split -> contrato -> gravacao.
+
+Referencia e pool so sao gravados se passarem no contrato de dados: se a limpeza deixar
+passar algo invalido, nada e gravado e o treino nao tem como rodar.
 
 Grava a referencia em ``data/reference/`` e o pool em ``data/production/``, mais um
 ``split_metadata.json`` com contagens, taxas e o hash do arquivo de origem.
@@ -15,11 +18,10 @@ from src.data.loader import DataSource, load_raw, source_path
 from src.data.schema import TARGET_COLUMN
 from src.data.split import DataSplit, default_rate_gap_pp, split_dataset
 from src.monitoring.log import get_logger
-from src.pipeline.io import write_json
+from src.pipeline.io import METADATA_FILE, write_json
+from src.pipeline.validate import VALIDATION_REPORT_DIR, validate_stage
 
 logger = get_logger(__name__)
-
-METADATA_FILE = "split_metadata.json"
 
 
 class SplitBalanceError(RuntimeError):
@@ -30,6 +32,7 @@ def prepare_data(
     source: DataSource = DataSource.REAL,
     reference_dir: Path = REFERENCE_DIR,
     production_dir: Path = PRODUCTION_DIR,
+    validation_report_dir: Path = VALIDATION_REPORT_DIR,
 ) -> dict[str, Any]:
     """Executa o estagio de preparacao e grava os conjuntos em Parquet.
 
@@ -37,12 +40,14 @@ def prepare_data(
         source: Dataset real ou sintetico.
         reference_dir: Destino de treino, validacao e teste.
         production_dir: Destino do pool de producao.
+        validation_report_dir: Destino dos relatorios do contrato.
 
     Returns:
         Metadados do split (tambem gravados em JSON).
 
     Raises:
         SplitBalanceError: Se a diferenca de inadimplencia passar do limite configurado.
+        ContractViolationError: Se a referencia ou o pool violarem o contrato.
     """
     started = time.perf_counter()
     config = load_config()
@@ -55,6 +60,7 @@ def prepare_data(
     if gap > config["split"]["max_default_rate_gap_pp"]:
         raise SplitBalanceError(f"Inadimplencia difere {gap:.2f} p.p. entre ref. e producao")
 
+    _validate(split, str(source), validation_report_dir)
     metadata = _metadata(source, cleaning_report.to_dict(), split, gap)
     _write(split, metadata, reference_dir, production_dir)
     logger.info(
@@ -66,6 +72,19 @@ def prepare_data(
         duration_s=round(time.perf_counter() - started, 3),
     )
     return metadata
+
+
+def _validate(split: DataSplit, source: str, report_dir: Path) -> None:
+    """Valida referencia e pool antes de gravar (sem quarentena: nao sao lotes)."""
+    validate_stage(split.reference, "reference", source, quarantine_dir=None, report_dir=report_dir)
+    validate_stage(
+        split.production_pool,
+        "production_pool",
+        source,
+        reference=split.reference,
+        quarantine_dir=None,
+        report_dir=report_dir,
+    )
 
 
 def _metadata(

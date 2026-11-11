@@ -1,0 +1,20 @@
+{
+  "batch_id": "production_pool",
+  "status": "passed",
+  "rows": 14983,
+  "rules_violated": [],
+  "critical": [],
+  "warnings": [
+    {
+      "rule": "W1",
+      "column": "BILL_AMT*",
+      "check": "min < -100000",
+      "cases": 5,
+      "examples": [
+        -339603,
+        -209051,
+        -170000
+      ]
+    }
+  ]
+}

@@ -34,6 +34,30 @@ split:
   test_fraction: 0.15        # da referencia
   max_default_rate_gap_pp: 1.0
 
+contract:
+  # docs/DATA_CONTRACTS.md. Regras C* bloqueiam o lote; avisos W* so registram.
+  # Dominios conferidos na referencia real (notebooks/01_eda.ipynb).
+  age_range: [18, 100]          # C4
+  limit_bal_max: 1000000        # C5 (LIMIT_BAL > 0 e <= max)
+  education_codes: [1, 2, 3, 4] # C6
+  sex_codes: [1, 2]             # C6
+  marriage_codes: [1, 2, 3]     # C6
+  pay_status_range: [-2, 9]     # C7
+  warnings:
+    bill_amt_min: -100000       # W1: fatura negativa abaixo disso (2 linhas na referencia)
+    volume_tolerance: 0.30      # W2: lote fora de +-30% de batches.rows
+    late_payment_ratio_max: 1.5 # W3: fracao de PAY_0 >= 2 acima de 1,5x a da referencia
+
+batches:
+  rows: 2400                    # tamanho de cada lote simulado (M01..M06)
+  corrupted:
+    # Lote da demonstracao de bloqueio: amostra VALIDA do pool + defeitos declarados.
+    rows: 500
+    rows_per_defect: 5
+    invalid_ages: [15, 130]     # C4
+    invalid_education: 7        # C6
+    extra_column: CPF           # C1 (valor ficticio fixo, nunca um CPF real)
+
 model:
   # ADR 04: comparacao enxuta, parametros padrao, criterio declarado antes do treino.
   # Fora das features: chave, target e atributos so de auditoria (ADR 08).

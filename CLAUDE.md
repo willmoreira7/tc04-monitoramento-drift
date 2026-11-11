@@ -90,6 +90,8 @@ uv run python scripts/download_data.py --synthetic     # fallback sintético (me
 uv run python scripts/verify_setup.py                  # diagnóstico do ambiente
 uv run python scripts/prepare_data.py                  # limpeza + split ref × produção (--synthetic)
 uv run python scripts/train_model.py                   # treina, compara e promove (ADR 04)
+uv run python scripts/validate_batch.py --demo valid   # contrato: lote válido passa (exit 0)
+uv run python scripts/validate_batch.py --demo corrupted  # lote corrompido bloqueado (exit 2)
 uv run jupyter lab notebooks/                          # notebooks (versionados com saídas)
 uv run pytest                                          # testes (sem rede)
 uv run ruff check . && uv run ruff format --check .    # lint
@@ -121,7 +123,7 @@ Variáveis úteis: `TC04_LOG_FORMAT=json` (logs em JSON) · `MLFLOW_DISABLE_AGEN
 > Atualizar sempre que uma decisão 🟡 Proposta for confirmada ou alterada.
 
 - Dataset: UCI Default of Credit Card Clients, CC BY 4.0 — ✅ decidido (2026-11-07). Home Credit descartado pelos termos de uso (ADR 12)
-- Biblioteca de contrato: Pandera — 🟡 proposta (ADR 02)
+- Biblioteca de contrato: Pandera — ✅ (ADR 02). Relatório em JSON agregado (não HTML). Falha → regra mapeada no próprio contrato, porque o `name=` das checks não aparece em `failure_cases`. Exit codes: 0 aprovado · 1 dados ausentes · 2 bloqueado
 - Rastreamento da Etapa 3: MLflow local (SQLite) + dashboard HTML estático — 🟡 proposta (ADR 05)
 - Limiares de drift: PSI ≥ 0,10 atenção · PSI ≥ 0,25 crítico · KS confirma — 🟡 proposta
 - Promoção (ADR 04, ✅): AUC ≥ 0,70 e > Dummy **na validação**; empate (Δ < 0,01) → LogReg. Promovido: XGBoost (val 0,7602 · teste 0,7479), limiar 0,2533 por máximo KS. Sem busca de hiperparâmetros, por decisão

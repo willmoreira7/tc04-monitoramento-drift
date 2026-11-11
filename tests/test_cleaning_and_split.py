@@ -74,6 +74,14 @@ def test_production_pool_never_reaches_reference(split: DataSplit) -> None:
     assert not set(split.production_pool["ID"]) & set(split.reference["ID"])
 
 
+def test_no_production_profile_reaches_training(split: DataSplit) -> None:
+    """Alem do ID, o conteudo: nenhum perfil do pool aparece no treino com outro ID."""
+    profile = [column for column in split.train.columns if column != "ID"]
+    train_profiles = set(split.train[profile].itertuples(index=False, name=None))
+    pool_profiles = set(split.production_pool[profile].itertuples(index=False, name=None))
+    assert not train_profiles & pool_profiles
+
+
 def test_split_preserves_default_rate(split: DataSplit) -> None:
     assert default_rate_gap_pp(split) < load_config()["split"]["max_default_rate_gap_pp"]
     rates = [subset[TARGET_COLUMN].mean() for subset in split.as_dict().values()]
@@ -113,12 +121,18 @@ def test_prepare_writes_parquet_and_metadata(
     monkeypatch.setattr(loader, "synthetic_dataset_path", lambda: raw_file)
 
     metadata = prepare.prepare_data(
-        DataSource.SYNTHETIC, tmp_path / "reference", tmp_path / "production"
+        DataSource.SYNTHETIC,
+        tmp_path / "reference",
+        tmp_path / "production",
+        tmp_path / "validation",
     )
 
     for name in ("train", "validation", "test"):
         assert (tmp_path / "reference" / f"{name}.parquet").is_file()
     assert (tmp_path / "production" / "pool.parquet").is_file()
+    for subset in ("reference", "production_pool"):
+        report = json.loads((tmp_path / "validation" / f"{subset}.synthetic.json").read_text())
+        assert report["status"] == "passed"
     saved = json.loads((tmp_path / "reference" / prepare.METADATA_FILE).read_text())
     assert saved == metadata
     assert (

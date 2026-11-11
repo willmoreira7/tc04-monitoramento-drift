@@ -11,6 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from src.contracts.result import ContractViolationError  # noqa: E402
 from src.data.loader import DataSource  # noqa: E402
 from src.monitoring.log import configure_logging, get_logger  # noqa: E402
 from src.pipeline.prepare import prepare_data  # noqa: E402
@@ -28,6 +29,9 @@ def main() -> int:
     except FileNotFoundError as error:
         logger.error("dataset_missing", reason=str(error))
         return 1
+    except ContractViolationError as error:
+        logger.error("reference_blocked", reason=str(error))
+        return 2
     for name, subset in metadata["subsets"].items():
         logger.info("subset_ready", subset=name, **subset)
     return 0

@@ -1,9 +1,12 @@
 # 🛡️ Contratos de Dados
 
-> Regras que um lote precisa cumprir para chegar ao modelo. Implementação na Etapa 1, em
-> `src/contracts/`, com **Pandera** (ver ADR 02 em [ARQUITETURA.md](ARQUITETURA.md)).
+> Regras que um lote precisa cumprir para chegar ao modelo. Implementadas em
+> [`src/contracts/`](../src/contracts/) com **Pandera** (ADR 02 em [ARQUITETURA.md](ARQUITETURA.md)).
+> Todos os limites ficam em `configs/pipeline.yaml`, seção `contract`.
 
-> 🟡 **Status: especificação.** Domínios numéricos a confirmar na EDA.
+> ✅ **Status: implementado (Etapa 1).** Domínios conferidos na referência real: `AGE`
+> 21–75, `LIMIT_BAL` 10 mil–1 milhão, `PAY_*` −2 a 8. A referência e o pool de produção
+> passam no contrato antes de serem gravados.
 
 ---
 
@@ -38,10 +41,10 @@ corresponde a uma falha plausível de origem.
 
 | # | Regra | Por que é só aviso |
 |---|-------|--------------------|
-| W1 | `BILL_AMT*` negativo acima de um teto | Crédito a favor existe; valores extremos merecem investigação, não bloqueio |
-| W2 | Lote com volume fora de ±30% do esperado | Pode ser sazonalidade; vira métrica na Etapa 3 |
-| W3 | Fração de `PAY_0 ≥ 2` muito acima da referência | É sinal de drift, não de dado inválido — deixa para a Etapa 2 |
-| W4 | Linhas com conteúdo idêntico sob IDs diferentes | Existem 35 no dataset original; podem ser perfis coincidentes (ex.: cartões sem uso, tudo zerado). Viram aviso até a EDA concluir |
+| W1 | Alguma `BILL_AMT*` abaixo de −100.000 | Crédito a favor existe; valores extremos merecem investigação, não bloqueio. Dispara em 2 linhas da referência e 5 do pool |
+| W2 | Lote com volume fora de ±30% de `batches.rows` (2.400) | Pode ser sazonalidade; vira métrica na Etapa 3 |
+| W3 | Fração de `PAY_0 ≥ 2` acima de 1,5× a da referência (10,6%) | É sinal de drift, não de dado inválido; quem mede é a Etapa 2 |
+| W4 | Linhas com conteúdo idêntico sob IDs diferentes | Existem 35 no dataset original; não dá para distinguir cadastro duplicado de perfil coincidente. Na referência são removidas na limpeza ([DATASET.md](DATASET.md)); num lote de produção viram aviso |
 
 > ℹ️ **Contrato ≠ detector de drift.** Um lote com clientes mais endividados é *válido* e
 > deve passar pelo contrato; quem o sinaliza é a Etapa 2. O contrato só reprova o que é
@@ -67,7 +70,13 @@ lote ──► validação Pandera (lazy=True: coleta TODAS as violações, não
 
 **Decisão: o lote inteiro é bloqueado**, não só as linhas inválidas. Filtrar linhas em
 silêncio esconderia um problema de origem e mudaria a distribuição do lote — o que
-contaminaria a detecção de drift logo depois. 🟡 Proposta — registrar como ADR.
+contaminaria a detecção de drift logo depois. ✅ ADR 06.
+
+**Exit codes** de `scripts/validate_batch.py` e `scripts/prepare_data.py`: `0` aprovado ·
+`1` dados ausentes · `2` bloqueado pelo contrato.
+
+**Rótulo opcional:** a coluna `default` pode faltar (em produção o rótulo chega com
+atraso). Se vier, precisa estar em {0, 1}.
 
 ---
 
@@ -79,17 +88,29 @@ contaminaria a detecção de drift logo depois. 🟡 Proposta — registrar como
 O lote corrompido é gerado a partir de uma amostra **válida** do pool de produção, com
 defeitos injetados de forma declarada:
 
-| Defeito injetado | Regra que deve disparar |
-|------------------|------------------------|
-| Nulos em `LIMIT_BAL` | C2 |
-| Clientes duplicados | C3 |
-| `AGE` = 15 e `AGE` = 130 | C4 |
-| `EDUCATION` = 7 | C6 |
-| `PAY_AMT1` negativo | C8 |
-| Coluna extra `CPF` | C1 |
+Amostra de 500 linhas do pool (seed 42), 5 linhas por defeito, parâmetros em
+`batches.corrupted` ([`src/contracts/corruption.py`](../src/contracts/corruption.py)):
+
+| Defeito injetado | Regra esperada | Resultado medido |
+|------------------|----------------|------------------|
+| Nulos em `LIMIT_BAL` | C2 | ✅ C2, 5 casos (e C1: a coluna deixa de ser inteira) |
+| `ID` repetido | C3 | ✅ C3, 10 casos (as 5 cópias e os 5 originais) |
+| `AGE` = 15 e `AGE` = 130 | C4 | ✅ C4, 5 casos |
+| `EDUCATION` = 7 | C6 | ✅ C6, 5 casos |
+| `PAY_AMT1` negativo | C8 | ✅ C8, 5 casos |
+| Coluna extra `CPF` (valor fictício fixo) | C1 | ✅ C1, `column_in_schema` |
+
+Fonte: [`reports/validation/demo_corrupted.json`](../reports/validation/demo_corrupted.json).
+
+```bash
+uv run python scripts/validate_batch.py --demo valid       # 2.400 linhas do pool → aprovado, exit 0
+uv run python scripts/validate_batch.py --demo corrupted   # bloqueado, exit 2, lote em data/quarantine/
+```
 
 **Critério de aceite:** cada defeito aparece no relatório de falhas com a regra correta,
-o lote termina em quarentena e nenhuma predição é gravada.
+o lote termina em quarentena e nenhuma predição é gravada. ✅ A quarentena e o relatório
+estão cobertos por teste (`tests/test_contracts.py`); a garantia de que o lote bloqueado
+não gera predição é verificada de novo na Etapa 2, quando a predição entrar no pipeline.
 
 ---
 
@@ -97,11 +118,13 @@ o lote termina em quarentena e nenhuma predição é gravada.
 
 | Artefato | Onde |
 |----------|------|
-| Schemas | `src/contracts/` |
-| Testes (lote válido passa, cada defeito bloqueia) | `tests/` |
-| Relatório de validação por lote | `reports/validation/` (versionado) |
-| Log da execução | `logs/pipeline.jsonl` e artefato no MLflow |
+| Schema e mapeamento falha → regra | [`src/contracts/schema.py`](../src/contracts/schema.py) |
+| Avisos W1–W4 | [`src/contracts/soft_checks.py`](../src/contracts/soft_checks.py) |
+| Estágio (relatório, quarentena, log, bloqueio) | [`src/pipeline/validate.py`](../src/pipeline/validate.py) |
+| Testes: lote válido passa e cada regra C1–C8 tem ao menos um caso que bloqueia | [`tests/test_contracts.py`](../tests/test_contracts.py) |
+| Relatórios versionados | `reports/validation/`: `reference.json`, `production_pool.json`, `demo_valid.json`, `demo_corrupted.json` |
+| Log da execução | stdout (structlog) hoje; `logs/pipeline.jsonl` e MLflow na Etapa 3 |
 
 ---
 
-**Última atualização:** 2026-11-07
+**Última atualização:** 2026-11-10

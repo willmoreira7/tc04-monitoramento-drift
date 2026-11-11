@@ -69,6 +69,23 @@ model:
     min_auc: 0.70          # na validacao; o teste so reporta
     tie_tolerance: 0.01    # empate tecnico -> o mais interpretavel
 
+ablation:
+  # ADR 13 - criterio declarado ANTES de rodar a ablacao (minimizacao, LGPD art. 6, III):
+  # um atributo pessoal so fica no modelo se pagar por si. Remove-se o conjunto inteiro se
+  # a variante sem ele perder menos que max_auc_loss de AUC na validacao (modelo promovido
+  # pelo criterio do ADR 04 em cada variante). Senao, cada atributo e avaliado sozinho
+  # com o mesmo limiar. A decisao e aplicada em model.excluded_columns.
+  candidates: [AGE, EDUCATION]
+  max_auc_loss: 0.01        # mesma tolerancia do empate tecnico do ADR 04
+
+fairness:
+  # Auditoria de vies (ADR 08/13): resultado por grupo, medido no teste da referencia.
+  # Os atributos ficam nos dados para a auditoria mesmo quando nao sao features.
+  attributes: [SEX, AGE, EDUCATION, MARRIAGE]
+  age_bins: [18, 30, 40, 50, 101]   # 18-29, 30-39, 40-49, 50+
+  impact_ratio_min: 0.8             # regra dos 4/5
+  min_group_size: 100               # abaixo disso: numero reportado, sem conclusao
+
 synthetic:
   # Fallback para quem nao conseguir baixar o dataset real e para o CI.
   # Valida o pipeline; NAO reproduz as metricas documentadas.

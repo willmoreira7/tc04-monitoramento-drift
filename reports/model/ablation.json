@@ -1,0 +1,119 @@
+{
+  "criterion": {
+    "candidates": [
+      "AGE",
+      "EDUCATION"
+    ],
+    "max_auc_loss": 0.01
+  },
+  "variants": {
+    "all": {
+      "dropped": [],
+      "promoted": "xgboost",
+      "validation_auc": 0.7602,
+      "validation_ks": 0.4207,
+      "candidates_auc": {
+        "dummy": 0.4902,
+        "logistic_regression": 0.7057,
+        "xgboost": 0.7602
+      },
+      "min_good_payer_ratio": {
+        "SEX": 0.9659,
+        "AGE": 0.9167,
+        "EDUCATION": 0.9152,
+        "MARRIAGE": 0.9924
+      },
+      "min_impact_ratio": {
+        "SEX": 0.9303,
+        "AGE": 0.8951,
+        "EDUCATION": 0.8718,
+        "MARRIAGE": 0.9731
+      },
+      "auc_loss": 0.0
+    },
+    "without_AGE": {
+      "dropped": [
+        "AGE"
+      ],
+      "promoted": "xgboost",
+      "validation_auc": 0.7577,
+      "validation_ks": 0.4133,
+      "candidates_auc": {
+        "dummy": 0.4902,
+        "logistic_regression": 0.7065,
+        "xgboost": 0.7577
+      },
+      "min_good_payer_ratio": {
+        "SEX": 0.9829,
+        "AGE": 0.9664,
+        "EDUCATION": 0.9273,
+        "MARRIAGE": 0.9818
+      },
+      "min_impact_ratio": {
+        "SEX": 0.9615,
+        "AGE": 0.9271,
+        "EDUCATION": 0.889,
+        "MARRIAGE": 0.996
+      },
+      "auc_loss": 0.0025
+    },
+    "without_EDUCATION": {
+      "dropped": [
+        "EDUCATION"
+      ],
+      "promoted": "xgboost",
+      "validation_auc": 0.7611,
+      "validation_ks": 0.4048,
+      "candidates_auc": {
+        "dummy": 0.4902,
+        "logistic_regression": 0.707,
+        "xgboost": 0.7611
+      },
+      "min_good_payer_ratio": {
+        "SEX": 0.9713,
+        "AGE": 0.9252,
+        "EDUCATION": 0.9013,
+        "MARRIAGE": 0.9969
+      },
+      "min_impact_ratio": {
+        "SEX": 0.956,
+        "AGE": 0.9231,
+        "EDUCATION": 0.8473,
+        "MARRIAGE": 0.9813
+      },
+      "auc_loss": -0.0009
+    },
+    "without_AGE_EDUCATION": {
+      "dropped": [
+        "AGE",
+        "EDUCATION"
+      ],
+      "promoted": "xgboost",
+      "validation_auc": 0.7622,
+      "validation_ks": 0.4133,
+      "candidates_auc": {
+        "dummy": 0.4902,
+        "logistic_regression": 0.7081,
+        "xgboost": 0.7622
+      },
+      "min_good_payer_ratio": {
+        "SEX": 0.9758,
+        "AGE": 0.9567,
+        "EDUCATION": 0.8823,
+        "MARRIAGE": 0.9918
+      },
+      "min_impact_ratio": {
+        "SEX": 0.9523,
+        "AGE": 0.9024,
+        "EDUCATION": 0.8231,
+        "MARRIAGE": 0.9658
+      },
+      "auc_loss": -0.002
+    }
+  },
+  "remove": [
+    "AGE",
+    "EDUCATION"
+  ],
+  "decision_applied": true
+}

@@ -60,9 +60,10 @@ batches:
 
 model:
   # ADR 04: comparacao enxuta, parametros padrao, criterio declarado antes do treino.
-  # Fora das features: chave, target e atributos so de auditoria (ADR 08).
-  excluded_columns: [ID, default, SEX, MARRIAGE]
-  categorical_columns: [EDUCATION]
+  # Fora das features: chave, target, atributos so de auditoria (ADR 08) e os atributos
+  # pessoais removidos pela ablacao (ADR 13: sem AGE e EDUCATION a AUC val. nao cai).
+  excluded_columns: [ID, default, SEX, MARRIAGE, AGE, EDUCATION]
+  categorical_columns: [EDUCATION]  # usado so se EDUCATION voltar a ser feature
   candidates: [dummy, logistic_regression, xgboost]
   interpretable: logistic_regression
   promotion:

@@ -106,9 +106,9 @@ para os nomes do dicionário da UCI:
 | `ID` | `ID` | int | Único | Chave — **nunca** é feature |
 | `X1` | `LIMIT_BAL` | int | > 0 (NT$) | Feature |
 | `X2` | `SEX` | cat | 1 = masculino, 2 = feminino | Auditoria de viés — **fora do modelo** |
-| `X3` | `EDUCATION` | cat | 1 pós, 2 universidade, 3 ensino médio, 4 outros | A decidir (ablação) |
+| `X3` | `EDUCATION` | cat | 1 pós, 2 universidade, 3 ensino médio, 4 outros | Só auditoria (removida pela ablação, ADR 13) |
 | `X4` | `MARRIAGE` | cat | 1 casado, 2 solteiro, 3 outros | Auditoria de viés — **fora do modelo** |
-| `X5` | `AGE` | int | anos | A decidir (ablação); contrato exige ≥ 18 |
+| `X5` | `AGE` | int | anos | Só contrato (≥ 18) e auditoria (removida pela ablação, ADR 13) |
 | `X6`–`X11` | `PAY_0`, `PAY_2` … `PAY_6` | int | −1 pago em dia; 1…9 meses de atraso | Feature |
 | `X12`–`X17` | `BILL_AMT1` … `BILL_AMT6` | int | Valor da fatura (pode ser negativo: crédito a favor) | Feature |
 | `X18`–`X23` | `PAY_AMT1` … `PAY_AMT6` | int | ≥ 0, valor pago | Feature |
@@ -201,4 +201,4 @@ UCI (30.000 linhas, 22,12% inadimplentes)
 
 ---
 
-**Última atualização:** 2026-11-07
+**Última atualização:** 2026-11-10

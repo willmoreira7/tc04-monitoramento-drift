@@ -18,7 +18,7 @@ from src.config import PRODUCTION_DIR, QUARANTINE_DIR, REFERENCE_DIR, REPORTS_DI
 from src.contracts.corruption import corrupt_batch
 from src.contracts.result import ContractResult, ContractViolationError
 from src.contracts.validate import validate_batch
-from src.monitoring.log import get_logger
+from src.monitoring.log import get_logger, log_pipeline_event
 from src.pipeline.io import read_prepared, read_split_metadata, report_name, write_json
 
 logger = get_logger(__name__)
@@ -123,6 +123,7 @@ def _log(batch_id: str, result: ContractResult, duration: float) -> None:
     }
     if result.passed:
         logger.info("stage_validation", status="success", rows_out=result.rows, **fields)
+        log_pipeline_event("stage_validation", status="success", rows_out=result.rows, **fields)
         return
     logger.error(
         "stage_validation",
@@ -132,3 +133,10 @@ def _log(batch_id: str, result: ContractResult, duration: float) -> None:
         **fields,
     )
     logger.critical("alert", severity="critical", reason="contract_violation", **fields)
+    log_pipeline_event(
+        "stage_validation",
+        status="blocked",
+        rows_out=0,
+        rules_violated=result.rules_violated,
+        **fields,
+    )

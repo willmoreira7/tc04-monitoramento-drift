@@ -37,7 +37,7 @@ entregável é a camada de **sustentação** em torno dele:
 
 - **Etapa 1 — Validação de dados:** contrato com Pandera que intercepta e bloqueia lotes inválidos
 - **Etapa 2 — Drift:** lotes mensais simulados + Evidently AI com PSI e Kolmogorov-Smirnov
-- **Etapa 3 — Observabilidade:** logs estruturados, métricas do pipeline e alertas de drift no MLflow + dashboard
+- **Etapa 3 — Observabilidade:** tracking MLflow por lote e dashboard HTML; integração com drift real depende da conclusão da Etapa 2
 - **Etapa 4 — Governança:** plano LGPD, mitigação de vieses e análise causal (neste README)
 
 > O andamento de cada item está em [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -258,7 +258,19 @@ contrato coleta **todas** as violações de uma vez, move o lote inteiro para
 Relatório: [`reports/validation/demo_corrupted.json`](reports/validation/demo_corrupted.json).
 As 8 regras críticas e os 4 avisos estão em [docs/DATA_CONTRACTS.md](docs/DATA_CONTRACTS.md).
 
-### 5. Modelo base
+### 5. Monitoramento batch (Etapa 3)
+
+Após preparar os dados, os comandos abaixo registram cada lote no MLflow local e atualizam o dashboard HTML. O lote corrompido é bloqueado antes de qualquer predição e retorna exit code 2.
+
+```bash
+uv run python scripts/run_monitoring_demo.py --demo valid --scenario contract_demo
+uv run python scripts/run_monitoring_demo.py --demo corrupted --scenario contract_demo  # exit 2 esperado
+uv run python scripts/build_monitoring_dashboard.py
+```
+
+Detalhes de métricas, alertas, tracking e limitações atuais: [docs/MONITORING.md](docs/MONITORING.md). A integração de drift real aguarda a implementação da Etapa 2.
+
+### 6. Modelo base
 
 ```bash
 uv run python scripts/train_model.py

@@ -12,7 +12,7 @@
 | [0 — Fundação](#-etapa-0--fundação-do-repositório) | — | — | ✅ Concluída |
 | [1 — Validação de Dados](#-etapa-1--validação-de-dados-e-contratos) | Validação de Dados e Bibliotecas de Qualidade | 25% | ✅ Concluída |
 | [2 — Drift](#-etapa-2--simulação-e-detecção-de-drift) | Data Drift | 25% | ⬜ Não iniciada |
-| [3 — Observabilidade](#-etapa-3--observabilidade-de-pipelines-e-modelos) | Monitoramento de Pipelines e Infraestrutura | 20% | ⬜ Não iniciada |
+| [3 — Observabilidade](#-etapa-3--observabilidade-de-pipelines-e-modelos) | Monitoramento de Pipelines e Infraestrutura | 20% | 🟡 Em andamento |
 | [4 — Governança e Entrega](#%EF%B8%8F-etapa-4--governança-causalidade-e-entrega) | Privacy by Design e by Default | 15% + 15% (vídeo) | ⬜ Não iniciada |
 
 **Legenda:** ⬜ não iniciada · 🟡 em andamento · ✅ concluída · 🔴 bloqueada
@@ -182,12 +182,12 @@ Relatório de drift (HTML do Evidently) apontando claramente as variáveis degra
 
 ### Tarefas
 
-- [ ] Logs estruturados (JSON) de cada estágio: ingestão, validação, predição, drift
-- [ ] Centralizar logs em `logs/pipeline.jsonl` e anexá-los às execuções do MLflow
-- [ ] Registrar uma execução MLflow por lote com as métricas de [MONITORING.md](MONITORING.md)
-- [ ] Regras de alerta (atenção / crítico) avaliadas a cada lote
-- [ ] Dashboard consolidado em `reports/monitoring/dashboard.html`
-- [ ] Documentar as métricas de saúde escolhidas e o playbook de resposta
+- [ ] Instrumentar logs JSON de todos os estágios do pipeline fim a fim (validação já anexa evento a `logs/pipeline.jsonl`; ingestão/predição/drift aguardam integração)
+- [x] Centralizar evento JSONL de validação; run de demonstração anexa relatório ao MLflow
+- [x] Registrar uma execução MLflow por lote na demonstração do contrato; integração com métricas reais de drift aguarda Etapa 2
+- [x] Regras de alerta PSI/score/performance configuráveis e testadas (avaliação dos resultados reais de drift aguarda Etapa 2)
+- [x] Gerador de dashboard consolidado HTML implementado; evidência não versionada até geração a partir de dados reais
+- [x] Documentar métricas, alertas e playbook em [MONITORING.md](MONITORING.md)
 - [ ] ⚪ Opcional: expor métricas com `prometheus-client` e reaproveitar o Grafana da Fase 3
 
 ### 📦 Entregável
@@ -246,4 +246,4 @@ Documentação completa de Governança e Causalidade no README + link do vídeo.
 
 ---
 
-**Última atualização:** 2026-11-10
+**Última atualização:** 2026-11-13

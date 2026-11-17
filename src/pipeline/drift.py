@@ -6,13 +6,18 @@ ressalva declarada). Cada lote vira uma execucao no MLflow, como os da demonstra
 
 Evidencias (dataset real; as do sintetico ganham ``.synthetic`` e nao sao versionadas):
 
-- ``reports/drift/<lote>.html``: relatorio do Evidently. Muda a cada execucao (ids e data
-  internos), entao e evidencia visual, fora da conferencia byte a byte do CI.
 - ``reports/drift/drift_summary.json``: numeros de todos os lotes, deterministico e
   conferido pelo CI.
+- ``reports/drift/<lote>.html``: relatorio do Evidently (~5 MB). Muda a cada execucao (ids
+  e data internos), entao fica fora da conferencia byte a byte do CI e so e substituido
+  quando o resumo muda: rodar de novo sem mudar numero nenhum nao toca os HTML versionados
+  (cada regeneracao commitada somaria 30 MB ao historico). O HTML de cada execucao e gerado
+  numa pasta temporaria e e ele que vai anexado ao MLflow.
 """
 
 import json
+import shutil
+import tempfile
 import time
 from dataclasses import dataclass, field
 from functools import partial
@@ -42,7 +47,7 @@ from src.models.train import predict_scores
 from src.monitoring.log import PIPELINE_LOG, get_logger
 from src.monitoring.model_metrics import build_model_metrics
 from src.monitoring.stages import BatchRecorder
-from src.pipeline.io import read_prepared, read_split_metadata, report_name, write_json
+from src.pipeline.io import json_text, read_prepared, read_split_metadata, report_name, write_json
 from src.pipeline.monitor import BatchOutcome, run_monitored_batch
 from src.pipeline.validate import VALIDATION_REPORT_DIR, IngestedBatch
 
@@ -70,7 +75,7 @@ class DriftContext:
         baseline: Performance do modelo na janela de referencia.
         source: ``real`` ou ``synthetic``.
         train: Treino da referencia, usado pelo aviso W3 do contrato.
-        report_dir: Destino dos relatorios de drift.
+        staging_dir: Pasta temporaria onde cada execucao grava o HTML do Evidently.
         results: Resultado de cada lote, preenchido pelos estagios.
     """
 
@@ -82,7 +87,7 @@ class DriftContext:
     baseline: dict[str, float]
     source: str
     train: pd.DataFrame
-    report_dir: Path
+    staging_dir: Path
     results: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     @property
@@ -105,29 +110,62 @@ def run_drift_simulation(
     Raises:
         FileNotFoundError: Se os dados nao tiverem sido preparados ou o modelo treinado.
     """
-    context = load_context(reference_dir, model_dir, report_dir)
-    pool = read_prepared(production_dir / "pool.parquet")
-    rows = load_config()["batches"]["rows"]
-    outcomes = {}
-    for batch_id, scenario in load_scenarios().items():
-        # Mesma seed em todos os lotes (numeros aleatorios comuns, ADR 14): a diferenca
-        # entre lotes vem so das perturbacoes declaradas, nao do sorteio.
-        ingest = partial(ingest_scenario_batch, batch_id, pool, scenario, rows, get_seed(), context)
-        outcomes[batch_id] = run_monitored_batch(
-            batch_id,
-            SCENARIO_TAG,
-            ingest,
-            partial(model_stages, context=context),
-            quarantine_dir,
-            validation_report_dir,
-            log_file,
-        )
-    summary = build_summary(context, outcomes, reference_dir)
-    write_json(report_dir / report_name(SUMMARY_FILE, context.source), summary)
+    with tempfile.TemporaryDirectory() as staging:
+        context = load_context(reference_dir, model_dir, Path(staging))
+        pool = read_prepared(production_dir / "pool.parquet")
+        rows = load_config()["batches"]["rows"]
+        outcomes = {}
+        for batch_id, scenario in load_scenarios().items():
+            # Mesma seed em todos os lotes (numeros aleatorios comuns, ADR 14): a diferenca
+            # entre lotes vem so das perturbacoes declaradas, nao do sorteio.
+            ingest = partial(
+                ingest_scenario_batch, batch_id, pool, scenario, rows, get_seed(), context
+            )
+            outcomes[batch_id] = run_monitored_batch(
+                batch_id,
+                SCENARIO_TAG,
+                ingest,
+                partial(model_stages, context=context),
+                quarantine_dir,
+                validation_report_dir,
+                log_file,
+            )
+        summary = build_summary(context, outcomes, reference_dir)
+        summary_file = report_dir / report_name(SUMMARY_FILE, context.source)
+        refresh = summary_changed(summary_file, summary)
+        write_json(summary_file, summary)
+        publish_html_reports(context.staging_dir, report_dir, refresh)
     return summary
 
 
-def load_context(reference_dir: Path, model_dir: Path, report_dir: Path) -> DriftContext:
+def summary_changed(summary_file: Path, summary: dict[str, Any]) -> bool:
+    """Se o resumo novo difere do gravado (ou se ainda nao ha resumo)."""
+    if not summary_file.is_file():
+        return True
+    return summary_file.read_text(encoding="utf-8") != json_text(summary)
+
+
+def publish_html_reports(staging_dir: Path, report_dir: Path, refresh: bool) -> list[Path]:
+    """Copia os HTML do Evidently para ``report_dir``.
+
+    Com ``refresh`` falso (nenhum numero mudou), so copia os que ainda nao existem: os
+    versionados ficam intactos.
+
+    Returns:
+        Arquivos copiados.
+    """
+    report_dir.mkdir(parents=True, exist_ok=True)
+    copied = []
+    for staged in sorted(staging_dir.glob("*.html")):
+        target = report_dir / staged.name
+        if refresh or not target.exists():
+            shutil.copyfile(staged, target)
+            copied.append(target)
+    logger.info("drift_html_reports", refreshed=refresh, copied=len(copied))
+    return copied
+
+
+def load_context(reference_dir: Path, model_dir: Path, staging_dir: Path) -> DriftContext:
     """Carrega o modelo, monta a janela de referencia e mede a linha de base.
 
     Raises:
@@ -158,7 +196,7 @@ def load_context(reference_dir: Path, model_dir: Path, report_dir: Path) -> Drif
         ),
         source=read_split_metadata(reference_dir)["source"],
         train=read_prepared(reference_dir / "train.parquet"),
-        report_dir=report_dir,
+        staging_dir=staging_dir,
     )
 
 
@@ -200,8 +238,7 @@ def model_stages(
         stage.rows_out = rows
     with recorder.stage("drift", rows_in=rows) as stage:
         drift, snapshot = detect_drift(context.reference, batch, context.monitored)
-        html = context.report_dir / report_name(f"{ingested.batch_id}.html", context.source)
-        html.parent.mkdir(parents=True, exist_ok=True)
+        html = context.staging_dir / report_name(f"{ingested.batch_id}.html", context.source)
         snapshot.save_html(str(html))
         stage.rows_out = rows
     with recorder.stage("performance", rows_in=rows) as stage:

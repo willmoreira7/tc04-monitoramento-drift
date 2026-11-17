@@ -19,6 +19,32 @@
 #   performance_alert: queda de AUC ou de recall acima da atencao
 
 bills: &bills [BILL_AMT1, BILL_AMT2, BILL_AMT3, BILL_AMT4, BILL_AMT5, BILL_AMT6]
+young_profile: &young_profile {column: AGE, below: 30, weight: 3.0}
+delayed_profile: &delayed_profile {column: PAY_0, at_least: 2, weight: 4.0}
+bills_inflation_10: &bills_inflation_10 {columns: *bills, factor: 1.10}
+bills_inflation_25: &bills_inflation_25 {columns: *bills, factor: 1.25}
+credit_limit_reduction: &credit_limit_reduction {columns: [LIMIT_BAL], factor: 0.85}
+concept_relabel: &concept_relabel
+  min_utilization: 0.5
+  max_pay_status: 0
+  probability: 0.3
+
+causal_interventions:
+  inflation_only:
+    narrative: Inflacao nominal isolada
+    scale: [*bills_inflation_10]
+  younger_profiles_only:
+    narrative: Reamostragem de clientes jovens isolada
+    resample: [*young_profile]
+  delayed_profiles_only:
+    narrative: Reamostragem de clientes com atraso isolada
+    resample: [*delayed_profile]
+  lower_limits_only:
+    narrative: Reducao de limite de credito isolada
+    scale: [*credit_limit_reduction]
+  concept_drift_only:
+    narrative: Reetiquetagem por concept drift, sem alteracao das features
+    relabel: *concept_relabel
 
 batches:
   M01:
@@ -30,7 +56,7 @@ batches:
   M02:
     narrative: Inflacao comeca - faturas 10% maiores, mesmo risco
     scale:
-      - {columns: *bills, factor: 1.10}
+      - *bills_inflation_10
     expected:
       drifted: []                # efeito pequeno: o KS acusa pelo n grande, o PSI nao
       performance_alert: false
@@ -38,9 +64,9 @@ batches:
   M03:
     narrative: Novos perfis - mais clientes jovens, inflacao acumulada de 25%
     resample:
-      - {column: AGE, below: 30, weight: 3.0}
+      - *young_profile
     scale:
-      - {columns: *bills, factor: 1.25}
+      - *bills_inflation_25
     expected:
       drifted: [AGE]
       performance_alert: false
@@ -48,21 +74,18 @@ batches:
   M04:
     narrative: Aperto de credito - M03 com mais atrasos e limites 15% menores
     resample:
-      - {column: AGE, below: 30, weight: 3.0}
-      - {column: PAY_0, at_least: 2, weight: 4.0}   # calibrado: peso 3 deixa o PSI em 0,09-0,14
+      - *young_profile
+      - *delayed_profile  # calibrado: peso 3 deixa o PSI em 0,09-0,14
     scale:
-      - {columns: *bills, factor: 1.25}
-      - {columns: [LIMIT_BAL], factor: 0.85}
+      - *bills_inflation_25
+      - *credit_limit_reduction
     expected:
       drifted: [AGE, LIMIT_BAL, PAY_0]
       performance_alert: false   # drift sem degradacao: o modelo separa melhor os atrasados
 
   M05:
     narrative: Concept drift - clientes em dia e endividados passam a inadimplir
-    relabel:
-      min_utilization: 0.5       # BILL_AMT1 / LIMIT_BAL
-      max_pay_status: 0          # PAY_0 <= 0: em dia no ultimo mes
-      probability: 0.3           # chance de um bom pagador desse perfil virar inadimplente
+    relabel: *concept_relabel
     expected:
       drifted: []                # features e score intactos: degradacao silenciosa
       performance_alert: true
@@ -70,15 +93,12 @@ batches:
   M06:
     narrative: Crise - aperto de credito (M04) e concept drift (M05) juntos
     resample:
-      - {column: AGE, below: 30, weight: 3.0}
-      - {column: PAY_0, at_least: 2, weight: 4.0}   # calibrado: peso 3 deixa o PSI em 0,09-0,14
-    relabel:
-      min_utilization: 0.5
-      max_pay_status: 0
-      probability: 0.3
+      - *young_profile
+      - *delayed_profile  # calibrado: peso 3 deixa o PSI em 0,09-0,14
+    relabel: *concept_relabel
     scale:
-      - {columns: *bills, factor: 1.25}
-      - {columns: [LIMIT_BAL], factor: 0.85}
+      - *bills_inflation_25
+      - *credit_limit_reduction
     expected:
       drifted: [AGE, LIMIT_BAL, PAY_0]
       # Hipotese do desenho: true (o concept drift do M05 dispararia o alerta). Medido: nao

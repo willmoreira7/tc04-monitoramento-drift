@@ -176,26 +176,37 @@ modelo piorou?"*. As duas respostas podem não coincidir.
   Novos perfis ─────► AGE ↓, LIMIT_BAL ↓ ──► score do modelo
 ```
 
-### Método: intervenção, não correlação
+### Método: intervenções isoladas e efeitos medidos
 
-Como a simulação é controlada, a causa verdadeira de cada degradação é **conhecida**. A
-análise aplica cada perturbação **isoladamente** sobre o mesmo lote base e mede o efeito:
+`uv run python scripts/run_causal_ablation.py` lê as intervenções declaradas em
+`configs/drift_scenarios.yaml`, fixa o seed 42 e compara cada lote com o controle M01. A
+reamostragem muda a população por definição; os demais mecanismos usam o mesmo pool, seed,
+tamanho e modelo. O relatório completo, com PSI e KS D por coluna, fica em
+[`reports/drift/causal_ablation.json`](../reports/drift/causal_ablation.json); a leitura
+visual está em [`notebooks/03_drift_analysis.ipynb`](../notebooks/03_drift_analysis.ipynb).
 
-| Intervenção isolada | Δ PSI da feature | Δ AUC | Δ recall | Δ taxa de aprovação |
-|--------------------|-----------------|-------|----------|---------------------|
-| Só inflação nominal | 🟡 | 🟡 | 🟡 | 🟡 |
-| Só novos perfis (reamostragem) | 🟡 | 🟡 | 🟡 | 🟡 |
-| Só aperto (`PAY_0`, `LIMIT_BAL`) | 🟡 | 🟡 | 🟡 | 🟡 |
-| Só concept drift | 🟡 | 🟡 | 🟡 | 🟡 |
+| Intervenção isolada | PSI/features driftadas | Δ AUC vs. M01 | Δ recall | Δ aprovação | Interpretação |
+|--------------------|------------------------|--------------:|---------:|------------:|----------------|
+| Inflação `BILL_AMT*` +10% | Nenhuma; PSI máx. 0,016 | −0,0007 | −0,0020 | −0,0021 | KS D nas faturas até 0,052, mas PSI e performance quase estáveis. |
+| Mais jovens (reamostragem) | `AGE` (0,152) | +0,0142 | +0,0240 | −0,0079 | Mudança de população sem piora de discriminação. |
+| Mais clientes em atraso (`PAY_0` ≥ 2) | `PAY_0` (0,221) | +0,0588 | +0,1573 | −0,1404 | Inadimplência +10,33 p.p.; discriminação melhora nesta carteira, aprovação cai. |
+| Limite de crédito × 0,85 | `LIMIT_BAL` (0,108) | −0,0076 | −0,0233 | 0,0000 | Efeito pequeno na performance; taxa de inadimplência permanece estável. |
+| Concept drift isolado | Nenhuma; PSI do score 0,009 | −0,0675 | −0,1225 | 0,0000 | Só a reetiquetagem reduz performance; features e scores permanecem estáveis. |
 
-**Perguntas que a tabela responde:**
+A intervenção de concept drift altera rótulos de clientes elegíveis com uma probabilidade
+de 30%; não representa uma taxa observada no mundo real. Os deltas são uma observação em
+uma amostra simulada, sem intervalos de confiança; não devem ser generalizados como efeito
+causal de produção.
 
-1. Qual drift **causa** degradação e qual é inofensivo? (drift ≠ degradação)
-2. O detector aponta para a causa verdadeira, ou para uma feature correlacionada?
-3. Quanto da degradação é invisível ao monitoramento de features? (concept drift)
+#### Interação M06: quando a população mascara o concept drift
 
-O resultado final — com a prescrição (retreinar, recalibrar, corrigir valores pela
-inflação ou revisar a política) — vai para a seção de Análise Causal do README.
+M06 combina aperto e reetiquetagem. Contra M04 (mesma carteira sob aperto sem concept
+drift), a AUC cai 0,0644 e o recall cai 0,1036. Contra M01, a AUC cai apenas 0,021 e o
+recall sobe 0,0538: a maior proporção de inadimplentes fáceis de ordenar mascara a queda
+na comparação agregada. Por isso M06 não dispara alerta de degradação baseado apenas no
+baseline geral. O resultado revela um limite real da regra de monitoramento — não foi
+recalibrado para forçar um alerta. Ver a análise e prescrição no
+[README](../README.md#-análise-causal-da-degradação).
 
 ---
 

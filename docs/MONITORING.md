@@ -6,7 +6,8 @@
 > ✅ **Status: implementada para os cinco estágios.** Os lotes M01…M06 da Etapa 2 passam
 > por ingestão, validação, predição, drift e performance
 > ([`src/pipeline/drift.py`](../src/pipeline/drift.py)); os da demonstração do contrato, só
-> pelos dois primeiros. Falta versionar os prints do MLflow.
+> pelos dois primeiros. O dashboard HTML versionado e o link do MLflow compartilhado são
+> evidências; o enunciado não exige capturas de tela.
 
 ---
 
@@ -113,27 +114,29 @@ lotes, estágios, regras do contrato e features.
 
 **Como usar**
 
+Configure `TC04_PUSHGATEWAY_URL`, `TC04_PUSHGATEWAY_USERNAME` e
+`TC04_PUSHGATEWAY_PASSWORD` por um gerenciador de segredos local se for enviar métricas ao
+ambiente compartilhado. Não inclua valores de credenciais no repositório. Os comandos de
+demonstração também funcionam sem esse serviço:
+
 ```bash
-export TC04_PUSHGATEWAY_URL=https://pushgateway.pocsarcotech.com
-export TC04_PUSHGATEWAY_USERNAME=tc04
-export TC04_PUSHGATEWAY_PASSWORD=8bf663087a8cc14faf5689a7109bcbdd
 uv run python scripts/run_monitoring_demo.py --demo valid
 uv run python scripts/run_monitoring_demo.py --demo corrupted   # exit 2
 ```
 
-| Serviço | URL | Login |
-|---------|-----|-------|
-| Pushgateway | <https://pushgateway.pocsarcotech.com> | `tc04` / senha acima |
-| Prometheus | <https://prometheus.pocsarcotech.com> | — |
-| Grafana | <https://grafana.pocsarcotech.com/d/tc04-batch-monitoring> | ver [README](../README.md#-ambiente-publicado-opcional) |
-| MLflow | <https://mlflow.pocsarcotech.com> | ver [README](../README.md#-ambiente-publicado-opcional) |
+| Serviço | URL | Acesso |
+|---------|-----|--------|
+| Pushgateway | <https://pushgateway.pocsarcotech.com> | Basic Auth; solicitar credenciais por canal autorizado |
+| Prometheus | <https://prometheus.pocsarcotech.com> | Conforme configuração do laboratório |
+| Grafana | <https://grafana.pocsarcotech.com/d/tc04-batch-monitoring> | Autenticado; solicitar acesso |
+| MLflow | <https://mlflow.pocsarcotech.com> | Autenticado; solicitar acesso |
 
 > 🔐 **O Pushgateway exige usuário e senha** (Basic Auth) em todas as rotas: enviar, apagar
 > e ler métricas. Sem as duas variáveis, ou com a senha errada, ele responde 401, o lote
-> loga `pushgateway_unreachable` com `http_status=401` e segue normalmente. A senha é
-> publicada de propósito (laboratório acadêmico); para trocá-la, basta alterar os values
-> abaixo e rodar o `helm upgrade`. Um Pushgateway local sem login continua funcionando:
-> é só não definir usuário e senha.
+> registra `pushgateway_unreachable` com `http_status=401` e segue normalmente. Um
+> Pushgateway local sem login continua funcionando sem essas variáveis. Credenciais que
+> constaram em versões anteriores devem ser revogadas/rotacionadas; apagar o texto não
+> elimina os valores do histórico Git.
 
 O Pushgateway é um subchart do Prometheus da Fase 3 (chart `prometheus-community/prometheus`
 29.30.0, release `prometheus`, namespace `monitoring`), ligado com estes values:
@@ -189,19 +192,18 @@ O padrão é o MLflow **local** (`mlflow.db`), que não depende de nada. Para a 
 avaliador verem as mesmas execuções por URL, há um servidor MLflow no cluster do
 laboratório: <https://mlflow.pocsarcotech.com> (login obrigatório).
 
+Configure `MLFLOW_TRACKING_URI`, `MLFLOW_TRACKING_USERNAME` e
+`MLFLOW_TRACKING_PASSWORD` no ambiente a partir do seu gerenciador de segredos autorizado:
+
 ```bash
-export MLFLOW_TRACKING_URI=https://mlflow.pocsarcotech.com
-export MLFLOW_TRACKING_USERNAME=admin
-export MLFLOW_TRACKING_PASSWORD=53b9885d9f779717dc548b620b63a0d6
 uv run python scripts/run_monitoring_demo.py --demo valid
 ```
 
 - Sem `MLFLOW_TRACKING_URI`, tudo continua local. Com ela, execuções, métricas e artefatos
   (relatório de validação, alertas e log do lote) vão para o servidor, e
   `build_monitoring_dashboard.py` lê de lá.
-- Login `admin`; a senha acima é a do secret `mlflow-admin` do cluster, publicada de
-  propósito (laboratório acadêmico) — a mesma tabela está no
-  [README](../README.md#-ambiente-publicado-opcional).
+- O servidor requer autenticação. Solicite acesso pelos canais autorizados do laboratório;
+  nenhuma senha é versionada neste repositório.
 - **Publicação automática:** um workflow do GitHub Actions envia os lotes para cá sem
   ninguém rodar nada à mão — ver [Publicação automática](#-publicação-automática-workflow-opcional).
 - Instalação versionada em
@@ -261,7 +263,7 @@ gh secret set TC04_PUSHGATEWAY_PASSWORD --body <senha do Pushgateway>
 | `MLFLOW_TRACKING_URI` | variable | ⚪ | `https://mlflow.pocsarcotech.com` |
 | `TC04_PUSHGATEWAY_URL` | variable | ⚪ | `https://pushgateway.pocsarcotech.com` |
 
-As senhas são as do [Ambiente Publicado](../README.md#-ambiente-publicado-opcional). As duas
+As credenciais são geridas fora do Git e devem ser fornecidas por canal seguro. As duas
 variáveis só precisam ser criadas se o ambiente mudar de endereço.
 
 ### O que ele faz
@@ -369,8 +371,8 @@ são `max(0, baseline - lote)`.
 | Logs estruturados | `logs/pipeline.jsonl` (não versionado); os eventos de cada lote são anexados à execução em `logs/pipeline.jsonl` |
 | Execuções | MLflow local (`mlflow.db` + `mlartifacts/`, não versionados) |
 | Dashboard consolidado | `reports/monitoring/dashboard.html` (versionado; só dataset real) |
-| Prints do MLflow | `docs/assets/` (versionado) — ⬜ pendente, tirar com os lotes M01…M06 |
+| MLflow compartilhado | [Execuções por lote](https://mlflow.pocsarcotech.com) — link requer acesso ao laboratório; não há requisito de prints |
 
 ---
 
-**Última atualização:** 2026-11-16
+**Última atualização:** 2026-11-17

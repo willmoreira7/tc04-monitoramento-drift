@@ -11,8 +11,8 @@
 |-------|-----------|------------------|--------|
 | [0 — Fundação](#-etapa-0--fundação-do-repositório) | — | — | ✅ Concluída |
 | [1 — Validação de Dados](#-etapa-1--validação-de-dados-e-contratos) | Validação de Dados e Bibliotecas de Qualidade | 25% | ✅ Concluída |
-| [2 — Drift](#-etapa-2--simulação-e-detecção-de-drift) | Data Drift | 25% | 🟡 Em andamento |
-| [3 — Observabilidade](#-etapa-3--observabilidade-de-pipelines-e-modelos) | Monitoramento de Pipelines e Infraestrutura | 20% | 🟡 Em andamento |
+| [2 — Drift](#-etapa-2--simulação-e-detecção-de-drift) | Data Drift | 25% | ✅ Concluída |
+| [3 — Observabilidade](#-etapa-3--observabilidade-de-pipelines-e-modelos) | Monitoramento de Pipelines e Infraestrutura | 20% | ✅ Concluída |
 | [4 — Governança e Entrega](#%EF%B8%8F-etapa-4--governança-causalidade-e-entrega) | Privacy by Design e by Default | 15% + 15% (vídeo) | 🟡 Em andamento |
 
 **Legenda:** ⬜ não iniciada · 🟡 em andamento · ✅ concluída · 🔴 bloqueada
@@ -159,8 +159,8 @@ Script de validação de dados operante + modelo baseline treinado.
 - [x] Monitorar drift de predição (distribuição do score)
 - [x] Monitorar performance com rótulos (AUC, recall de inadimplentes) para captar concept drift
 - [x] Confirmar que M01 (controle) **não** acusa drift (maior PSI: 0,011)
-- [ ] Ablação causal: cada perturbação isolada, impacto medido
-- [ ] Notebook `notebooks/03_drift_analysis.ipynb` com a leitura dos resultados
+- [x] Ablação causal: cada perturbação isolada, impacto medido; interações M04/M06 explicitadas
+- [x] Notebook `notebooks/03_drift_analysis.ipynb` com a leitura dos resultados versionados
 
 ### 📦 Entregável
 
@@ -175,8 +175,8 @@ Relatório de drift (HTML do Evidently) apontando claramente as variáveis degra
 - ⚠️ M06 não disparou o alerta de performance que o desenho previa: a mudança de população esconde o concept drift. Expectativa revista para o medido, hipótese original registrada, cenário não recalibrado ([DRIFT.md](DRIFT.md#-resultados))
 - [x] Teste exige que a evidência real versionada cumpra a expectativa de cada lote
 
-> 🟡 **A Etapa 2 não está encerrada.** Faltam a ablação causal, o notebook
-> `03_drift_analysis.ipynb` e a seção de Análise Causal no README (próximo PR).
+> ✅ **Etapa 2 concluída.** Ablação, notebook, relatório agregado e análise causal estão
+> versionados; os resultados são reproduzidos no CI com dataset real.
 
 ---
 
@@ -196,7 +196,6 @@ Relatório de drift (HTML do Evidently) apontando claramente as variáveis degra
 - [x] Estágios de predição, drift e performance no fluxo monitorado (lotes M01…M06)
 - [x] Dashboard versionado com os lotes de demonstração do contrato (dataset real)
 - [x] Regenerar o dashboard com os lotes M01…M06
-- [ ] Tirar os prints do MLflow com os lotes M01…M06 (`docs/assets/`)
 - [x] ⚪ Opcional: métricas do lote enviadas ao Pushgateway (`TC04_PUSHGATEWAY_URL`) e dashboard do Grafana versionado em `monitoring/grafana/`
 
 ### 📦 Entregável
@@ -206,9 +205,9 @@ a estabilidade da infraestrutura e os alertas de degradação do modelo.
 
 ### ✅ Critério de aceite
 
-- [x] Dashboard mostra, por lote: status de cada estágio, volume, latência, alertas de drift e performance
+- [x] Dashboard versionado mostra, por lote: status de cada estágio, volume, latência, alertas de drift e performance
 - [x] O lote corrompido aparece no dashboard como bloqueado na validação (exit 2), não como sucesso
-- [x] `uv run mlflow ui` lista as execuções com métricas e artefatos
+- [x] MLflow compartilhado serve como ambiente de rastreamento opcional; link publicado no README. Nenhum print é exigido pelo enunciado
 
 ---
 
@@ -220,10 +219,10 @@ a estabilidade da infraestrutura e os alertas de degradação do modelo.
 ### Tarefas
 
 - [x] Completar a seção de Governança no README com os números da auditoria de viés (Etapa 1, ADR 13)
-- [ ] Escrever a Análise Causal no README com os resultados da ablação
-- [ ] Revisar o Model Card final
-- [ ] Atualizar a tabela de conformidade deste documento
-- [ ] Executar o README completo num clone limpo (Windows **e** Linux/CI)
+- [x] Escrever a Análise Causal no README com os resultados da ablação
+- [x] Revisar o Model Card final com resultados de drift e limitações
+- [x] Atualizar a tabela de conformidade deste documento
+- [x] Executar comandos documentados em clone limpo Linux/CI; compatibilidade Windows não declarada
 - [ ] Roteirizar, ensaiar (≤ 5 min cronometrados) e gravar o vídeo STAR
 - [ ] Publicar o link do vídeo no README
 

@@ -4,14 +4,15 @@
 > Git — um Model Card gerado ali existiria em disco sem nunca chegar ao repositório (foi o
 > que custou nota no TC02). Critério de aceite: `git ls-files docs/MODEL_CARD.md`.
 
-> 🟡 **Estado:** performance, comparação, ablação e auditoria de viés preenchidas na
-> Etapa 1, e comportamento sob drift na Etapa 2, todos com números medidos. Pendente: a
-> leitura causal por intervenção isolada (fechamento da Etapa 2).
+> ✅ **Estado:** performance, comparação, ablação, auditoria de viés e análise de
+> comportamento sob drift preenchidas com resultados medidos. A ablação causal isolada e
+> seus limites estão em `reports/drift/causal_ablation.json` e na seção abaixo.
 >
 > Fontes, todas versionadas:
 > - [`reports/model/model_comparison.json`](../reports/model/model_comparison.json), gerado por `uv run python scripts/train_model.py`.
 > - [`reports/model/ablation.json`](../reports/model/ablation.json) e [`reports/model/fairness_audit.json`](../reports/model/fairness_audit.json), gerados por `uv run python scripts/audit_model.py`.
 > - [`reports/drift/drift_summary.json`](../reports/drift/drift_summary.json), gerado por `uv run python scripts/run_drift_simulation.py`.
+- [`reports/drift/causal_ablation.json`](../reports/drift/causal_ablation.json), gerado por `uv run python scripts/run_causal_ablation.py`.
 
 ---
 
@@ -202,7 +203,9 @@ simulado** e os rótulos são revelados no próprio lote.
   a AUC cai 0,067. Em produção, isso só aparece meses depois.
 - **Na crise, a queda fica escondida no agregado.** O M06 perde 0,064 de AUC contra a mesma
   carteira sem o concept drift (M04), mas só 0,021 contra a referência: nenhum alerta de
-  performance. Ver [DRIFT.md](DRIFT.md#-resultados).
+  performance. A ablação isolada mostra queda de 0,0675 de AUC e 0,1225 de recall sob
+  concept drift. São resultados de uma simulação controlada, sem intervalos de confiança;
+  ver [DRIFT.md](DRIFT.md#-análise-causal).
 
 ---
 
@@ -216,4 +219,4 @@ simulado** e os rótulos são revelados no próprio lote.
 
 ---
 
-**Última atualização:** 2026-11-10
+**Última atualização:** 2026-11-17

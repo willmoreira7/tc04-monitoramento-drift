@@ -121,11 +121,11 @@ tc04-monitoramento-drift/
 ├── monitoring/
 │   ├── grafana/                # ✅ Dashboard do Grafana (JSON) — camada opcional
 │   └── helm/                   # ✅ Values do MLflow compartilhado — camada opcional
-├── notebooks/                  # ✅ 01_eda · ⬜ baseline e análise de drift
+├── notebooks/                  # ✅ 01_eda · 03 análise de drift e ablação causal
 ├── reports/                    # ✅ VERSIONADO — evidências (só agregados; nada do sintético)
 │   ├── model/                  # ✅ comparação dos candidatos (model_comparison.json)
 │   ├── validation/             # ✅ resultado dos contratos por lote
-│   ├── drift/                  # ✅ relatórios Evidently por lote + drift_summary.json
+│   ├── drift/                  # ✅ relatórios Evidently por lote + drift_summary.json + ablação causal
 │   └── monitoring/             # ✅ dashboard consolidado (dashboard.html)
 ├── scripts/
 │   ├── download_data.py        # ✅ Dataset real (SHA256) ou sintético
@@ -136,6 +136,7 @@ tc04-monitoramento-drift/
 │   ├── run_monitoring_demo.py  # ✅ Lote monitorado: estágios, alertas e execução no MLflow
 │   ├── build_monitoring_dashboard.py  # ✅ Regenera o dashboard HTML a partir do MLflow
 │   ├── run_drift_simulation.py # ✅ Lotes M01…M06: drift (PSI/KS) e performance por lote
+│   ├── run_causal_ablation.py  # ✅ Intervenções isoladas e efeito na performance
 │   └── verify_setup.py         # ✅ Diz se o ambiente está pronto e o que falta
 ├── src/
 │   ├── config.py               # ✅ Caminhos, seed e configuração
@@ -357,8 +358,15 @@ regenerado.
 | Relatório do Evidently por lote (baixe e abra no navegador) | `reports/drift/M01.html` … `M06.html` |
 | Contrato de cada lote | `reports/validation/M01.json` … `M06.json` |
 
-A leitura completa — falso positivo, KS × PSI, drift sem degradação, degradação silenciosa
-e o M06 — está em [docs/DRIFT.md](docs/DRIFT.md#-resultados).
+A análise causal da interação e as limitações estão em [docs/DRIFT.md](docs/DRIFT.md#-análise-causal).
+
+A ablação por intervenção isolada é reprodutível com:
+
+```bash
+uv run python scripts/run_causal_ablation.py      # exige preparo e modelo; saída em reports/drift/
+```
+
+O JSON completo e o notebook estão versionados: [causal_ablation.json](reports/drift/causal_ablation.json) · [03_drift_analysis.ipynb](notebooks/03_drift_analysis.ipynb).
 
 ### 9. Testes e qualidade de código
 
@@ -389,20 +397,26 @@ laboratório) são reaproveitados como painel ao vivo, e o mesmo cluster hospeda
 compartilhado (`MLFLOW_TRACKING_URI`). O pipeline é batch, então cada lote
 **envia** suas métricas a um Pushgateway, que o Prometheus coleta e o Grafana exibe.
 
+O avaliador pode abrir o [MLflow compartilhado](https://mlflow.pocsarcotech.com) e o
+[dashboard Grafana](https://grafana.pocsarcotech.com/d/tc04-batch-monitoring), se tiver
+acesso ao laboratório. Para enviar métricas ao Pushgateway, configure `TC04_PUSHGATEWAY_URL`,
+`TC04_PUSHGATEWAY_USERNAME` e `TC04_PUSHGATEWAY_PASSWORD` por um gerenciador de segredos
+local; para rastrear no servidor, configure `MLFLOW_TRACKING_URI`,
+`MLFLOW_TRACKING_USERNAME` e `MLFLOW_TRACKING_PASSWORD`. **Credenciais não são publicadas
+neste repositório**; solicite acesso pelos canais autorizados. Os comandos abaixo também
+funcionam sem credenciais, usando o MLflow local e o dashboard HTML versionado:
+
 ```bash
-export TC04_PUSHGATEWAY_URL=https://pushgateway.pocsarcotech.com
-export TC04_PUSHGATEWAY_USERNAME=tc04
-export TC04_PUSHGATEWAY_PASSWORD=8bf663087a8cc14faf5689a7109bcbdd
 uv run python scripts/run_monitoring_demo.py --demo valid
 uv run python scripts/run_monitoring_demo.py --demo corrupted   # exit 2
 ```
 
-| Serviço | URL | Login | Senha |
-|---------|-----|-------|-------|
-| Grafana — dashboard do TC04 | <https://grafana.pocsarcotech.com/d/tc04-batch-monitoring> | `admin` | `STbREguNJJg1lfor6j-Gk2jGeVNNip44` |
-| Prometheus | <https://prometheus.pocsarcotech.com> | — | — |
-| Pushgateway | <https://pushgateway.pocsarcotech.com> | `tc04` | `8bf663087a8cc14faf5689a7109bcbdd` |
-| MLflow — execuções por lote | <https://mlflow.pocsarcotech.com> | `admin` | `53b9885d9f779717dc548b620b63a0d6` |
+| Serviço | URL | Acesso |
+|---------|-----|--------|
+| Grafana — dashboard do TC04 | <https://grafana.pocsarcotech.com/d/tc04-batch-monitoring> | Autenticado; solicitar acesso |
+| Prometheus | <https://prometheus.pocsarcotech.com> | Conforme configuração do laboratório |
+| Pushgateway | <https://pushgateway.pocsarcotech.com> | Basic Auth; credenciais por canal autorizado |
+| MLflow — execuções por lote | <https://mlflow.pocsarcotech.com> | Autenticado; solicitar acesso |
 
 - No Prometheus, as séries do projeto começam com `tc04_` (ex.: `tc04_batch_status`,
   `tc04_stage_status`).
@@ -416,9 +430,10 @@ uv run python scripts/run_monitoring_demo.py --demo corrupted   # exit 2
   Configuração, gatilhos e leitura do resultado em
   [docs/MONITORING.md](docs/MONITORING.md#-publicação-automática-workflow-opcional).
 
-> ⚠️ Credenciais publicadas intencionalmente: ambiente de laboratório acadêmico
-> (pós-graduação), como no TC03. É a única exceção à regra de não versionar credenciais
-> ([CONTRIBUTING](docs/CONTRIBUTING.md)); nenhum dado pessoal ou de produção passa por ele.
+> 🔐 Não versionamos segredos nem os incluímos em exemplos. Como credenciais antigas
+> chegaram a constar no histórico do repositório, os responsáveis pelo laboratório devem
+> revogá-las/rotacioná-las antes da entrega pública; apagar os valores do arquivo não os
+> remove do histórico Git.
 
 > ℹ️ Este ambiente é **demonstração** e não substitui a evidência versionada. Sem as variáveis
 > `TC04_PUSHGATEWAY_URL` e `MLFLOW_TRACKING_URI` nada é enviado, e o avaliador vê tudo pelo MLflow local e por
@@ -434,9 +449,9 @@ uv run python scripts/run_monitoring_demo.py --demo corrupted   # exit 2
 |-------|-----------|-----------|--------|
 | **0** | — | Documentação, regras, ambiente, download do dataset e CI | ✅ Concluída |
 | **1** | Validação de Dados e Bibliotecas de Qualidade | Contrato Pandera + lote ruim bloqueado + modelo baseline | ✅ Concluída |
-| **2** | Data Drift | Lotes simulados + relatórios Evidently (PSI/KS) | 🟡 Em andamento: lotes e relatórios prontos; falta a análise causal |
-| **3** | Monitoramento de Pipelines e Infraestrutura | Logs centralizados + MLflow + dashboard | 🟡 Em andamento |
-| **4** | Privacy by Design e by Default | Governança LGPD + análise causal + vídeo STAR | 🟡 Em andamento |
+| **2** | Data Drift | Lotes simulados + relatórios Evidently (PSI/KS) + ablação causal | ✅ Concluída |
+| **3** | Monitoramento de Pipelines e Infraestrutura | Logs centralizados + MLflow + dashboard HTML | ✅ Concluída; MLflow externo opcional |
+| **4** | Privacy by Design e by Default | Governança LGPD + análise causal + vídeo STAR | 🟡 Em andamento: falta o vídeo |
 
 > 📄 Tarefas, critérios de aceite e conformidade item a item com o enunciado em
 > **[docs/ROADMAP.md](docs/ROADMAP.md)**.
@@ -611,14 +626,21 @@ Tabela completa por grupo no [Model Card](docs/MODEL_CARD.md#️-vieses-e-equida
 
 ## 🔬 Análise Causal da Degradação
 
-> 🟡 **A preencher nas Etapas 2 e 4.** Estrutura definida em
-> [docs/DRIFT.md](docs/DRIFT.md#-análise-causal).
+A pergunta não é apenas *"houve drift?"*, mas *"qual mecanismo mudou a carteira e o que aconteceu com o modelo?"*. Aplicamos as perturbações isoladamente sobre lotes de 2.400 registros, com seed 42, e comparamos com M01 (controle). As diferenças são **efeitos observados nesta simulação controlada**, não estimativas causais generalizáveis nem evidência sobre uma carteira real.
 
-A pergunta não é *"houve drift?"*, e sim *"qual mudança causou a queda de performance?"*.
-Drift detectado não implica degradação, e degradação pode ocorrer sem drift detectável
-nas features (concept drift). Como a simulação é controlada, cada perturbação é aplicada
-**isoladamente** e o impacto em AUC, recall e taxa de aprovação é medido — uma
-intervenção, não uma correlação.
+| Intervenção isolada | Features com PSI ≥ 0,10 | Δ AUC vs. M01 | Δ recall inadimplentes | Δ aprovação | Leitura |
+|---|---|---:|---:|---:|---|
+| Inflação nominal (`BILL_AMT*` +10%) | nenhuma (PSI máx. 0,016) | −0,0007 | −0,0020 | −0,0021 | KS D nas faturas aumenta (máx. 0,052), mas a magnitude PSI é pequena e a performance quase não muda. |
+| Mais clientes jovens | `AGE` | +0,0142 | +0,0240 | −0,0079 | AUC e recall melhoram ligeiramente; drift não implica degradação. `AGE` é atributo monitorado, não feature do modelo. |
+| Mais clientes em atraso (`PAY_0` ≥ 2) | `PAY_0` | +0,0588 | +0,1573 | −0,1404 | A inadimplência sobe 10,33 p.p.; a discriminação melhora nesta carteira, com menor aprovação. |
+| Limites menores (`LIMIT_BAL` × 0,85) | `LIMIT_BAL` | −0,0076 | −0,0233 | 0,0000 | Mudança de limite sem mudança da taxa de inadimplência; efeito pequeno na performance nesta amostra. |
+| Concept drift (reetiquetagem) | nenhuma | −0,0675 | −0,1225 | 0,0000 | Features e score permanecem estáveis; a degradação aparece quando os rótulos simulados são revelados. |
+
+**Interação na crise (M06):** combinado ao aperto, o concept drift reduz AUC em 0,0644 e recall em 0,1036 contra M04, mas contra a referência agregada M01 a queda de AUC é apenas 0,021 e o recall ainda sobe. Assim, o baseline agregado não dispara alerta de performance para M06: a composição da carteira mascara a mudança condicional. O detector continua apontando drift nas features/score, mas não deve ser interpretado como prova de queda de performance.
+
+> **Limites:** os rótulos dos lotes são sintéticos e imediatamente disponíveis; em crédito real chegam com atraso. A ablação usa uma seed e uma população de origem; os deltas são descritivos, sem intervalo de confiança. O experimento mostra os mecanismos deste projeto, não estima impacto em uma fintech real.
+
+Resultados completos e definições: [relatório causal JSON](reports/drift/causal_ablation.json), [notebook 03](notebooks/03_drift_analysis.ipynb) e [docs/DRIFT.md](docs/DRIFT.md#-análise-causal).
 
 ---
 

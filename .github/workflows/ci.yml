@@ -112,6 +112,11 @@ jobs:
           uv run python scripts/run_drift_simulation.py
           test -s reports/drift/drift_summary.synthetic.json
 
+      - name: Ablacao causal (sintetico)
+        run: |
+          uv run python scripts/run_causal_ablation.py
+          test -s reports/drift/causal_ablation.synthetic.json
+
       - name: pytest
         run: uv run pytest --cov=src --cov-report=term-missing
 
@@ -160,6 +165,9 @@ jobs:
 
       - name: Drift - lotes M01..M06 (dataset real)
         run: uv run python scripts/run_drift_simulation.py
+
+      - name: Ablação causal isolada (dataset real)
+        run: uv run python scripts/run_causal_ablation.py
 
       # Evidencia versionada precisa ser reproduzida byte a byte num clone limpo. Os HTML do
       # Evidently e o dashboard levam ids e horarios de cada execucao: os numeros deles sao

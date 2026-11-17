@@ -119,7 +119,8 @@ tc04-monitoramento-drift/
 ├── docs/                       # ✅ Documentação do projeto
 ├── models/                     # Não versionado — artefato do modelo baseline
 ├── monitoring/
-│   └── grafana/                # ✅ Dashboard do Grafana (JSON) — camada opcional
+│   ├── grafana/                # ✅ Dashboard do Grafana (JSON) — camada opcional
+│   └── helm/                   # ✅ Values do MLflow compartilhado — camada opcional
 ├── notebooks/                  # ✅ 01_eda · ⬜ baseline e análise de drift
 ├── reports/                    # ✅ VERSIONADO — evidências (só agregados; nada do sintético)
 │   ├── model/                  # ✅ comparação dos candidatos (model_comparison.json)
@@ -347,7 +348,8 @@ validar mensagens de commit. Ver [docs/COMMITLINT.md](docs/COMMITLINT.md).
 
 O Prometheus e o Grafana da Fase 3
 ([tc03-cloud-mlops](https://github.com/willmoreira7/tc03-cloud-mlops), cluster EKS do
-laboratório) são reaproveitados como painel ao vivo. O pipeline é batch, então cada lote
+laboratório) são reaproveitados como painel ao vivo, e o mesmo cluster hospeda um MLflow
+compartilhado (`MLFLOW_TRACKING_URI`). O pipeline é batch, então cada lote
 **envia** suas métricas a um Pushgateway, que o Prometheus coleta e o Grafana exibe.
 
 ```bash
@@ -357,19 +359,24 @@ TC04_PUSHGATEWAY_URL=https://pushgateway.pocsarcotech.com uv run python scripts/
 
 | Serviço | URL | Login | Senha |
 |---------|-----|-------|-------|
-| Grafana — dashboard do TC04 | <https://grafana.pocsarcotech.com/d/tc04-batch-monitoring> | `admin` | a mesma do TC03 — tabela [Ambiente Publicado](https://github.com/willmoreira7/tc03-cloud-mlops#-ambiente-publicado) |
+| Grafana — dashboard do TC04 | <https://grafana.pocsarcotech.com/d/tc04-batch-monitoring> | `admin` | `STbREguNJJg1lfor6j-Gk2jGeVNNip44` |
 | Prometheus | <https://prometheus.pocsarcotech.com> | — | — |
 | Pushgateway | <https://pushgateway.pocsarcotech.com> | — | — |
+| MLflow — execuções por lote | <https://mlflow.pocsarcotech.com> | `admin` | `53b9885d9f779717dc548b620b63a0d6` |
 
 - No Prometheus, as séries do projeto começam com `tc04_` (ex.: `tc04_batch_status`,
   `tc04_stage_status`).
 - O dashboard do Grafana é versionado em
   [`monitoring/grafana/tc04-batch-monitoring.json`](monitoring/grafana/tc04-batch-monitoring.json).
-- A senha do Grafana não é repetida aqui: este repositório não versiona credenciais
-  ([CONTRIBUTING](docs/CONTRIBUTING.md)). Ela está publicada, de propósito, no README do TC03.
+- Para registrar os lotes no MLflow compartilhado em vez do `mlflow.db` local, ver
+  [docs/MONITORING.md](docs/MONITORING.md#-mlflow-compartilhado-opcional).
 
-> ⚠️ Este ambiente é **demonstração** e não substitui a evidência versionada. Sem a variável
-> `TC04_PUSHGATEWAY_URL` nada é enviado, e o avaliador vê tudo pelo MLflow local e por
+> ⚠️ Credenciais publicadas intencionalmente: ambiente de laboratório acadêmico
+> (pós-graduação), como no TC03. É a única exceção à regra de não versionar credenciais
+> ([CONTRIBUTING](docs/CONTRIBUTING.md)); nenhum dado pessoal ou de produção passa por ele.
+
+> ℹ️ Este ambiente é **demonstração** e não substitui a evidência versionada. Sem as variáveis
+> `TC04_PUSHGATEWAY_URL` e `MLFLOW_TRACKING_URI` nada é enviado, e o avaliador vê tudo pelo MLflow local e por
 > `reports/monitoring/dashboard.html`. O Pushgateway está aberto, sem autenticação
 > (laboratório acadêmico); só métricas agregadas trafegam por ele. Detalhes em
 > [docs/MONITORING.md](docs/MONITORING.md#-grafana-e-prometheus-opcional).

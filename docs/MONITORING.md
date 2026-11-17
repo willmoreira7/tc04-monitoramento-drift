@@ -118,6 +118,7 @@ TC04_PUSHGATEWAY_URL=https://pushgateway.pocsarcotech.com uv run python scripts/
 | Serviço | URL |
 |---------|-----|
 | Pushgateway | <https://pushgateway.pocsarcotech.com> |
+| MLflow | <https://mlflow.pocsarcotech.com> (login) |
 | Prometheus | <https://prometheus.pocsarcotech.com> |
 | Grafana | <https://grafana.pocsarcotech.com/d/tc04-batch-monitoring> |
 
@@ -161,6 +162,34 @@ O dashboard do Grafana é versionado em
 > ℹ️ O eixo do tempo do Grafana é o relógio real, e os lotes M01…M06 simulam meses em
 > segundos. Por isso os painéis comparam **lotes lado a lado** (valor mais recente de cada
 > um), não uma série temporal.
+
+---
+
+## 🧪 MLflow compartilhado (opcional)
+
+O padrão é o MLflow **local** (`mlflow.db`), que não depende de nada. Para a equipe e o
+avaliador verem as mesmas execuções por URL, há um servidor MLflow no cluster do
+laboratório: <https://mlflow.pocsarcotech.com> (login obrigatório).
+
+```bash
+export MLFLOW_TRACKING_URI=https://mlflow.pocsarcotech.com
+export MLFLOW_TRACKING_USERNAME=admin
+export MLFLOW_TRACKING_PASSWORD=53b9885d9f779717dc548b620b63a0d6
+uv run python scripts/run_monitoring_demo.py --demo valid
+```
+
+- Sem `MLFLOW_TRACKING_URI`, tudo continua local. Com ela, execuções, métricas e artefatos
+  (relatório de validação, alertas e log do lote) vão para o servidor, e
+  `build_monitoring_dashboard.py` lê de lá.
+- Login `admin`; a senha acima é a do secret `mlflow-admin` do cluster, publicada de
+  propósito (laboratório acadêmico) — a mesma tabela está no
+  [README](../README.md#-ambiente-publicado-opcional).
+- Instalação versionada em
+  [`monitoring/helm/mlflow-values.yaml`](../monitoring/helm/mlflow-values.yaml): SQLite e
+  artefatos num volume de 10 GiB, uma réplica, login básico do próprio MLflow, mesmo ALB
+  do Grafana. É ambiente de demonstração: sem alta disponibilidade nem backup.
+- Servidor 3.16.0 e cliente 3.18.0 (travado no `uv.lock`): testado com os lotes de
+  demonstração.
 
 ---
 

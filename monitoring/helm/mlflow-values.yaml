@@ -1,0 +1,89 @@
+# MLflow no cluster EKS do laboratorio (camada opcional do TC04 - docs/MONITORING.md).
+# Chart community-charts/mlflow 1.11.7 (MLflow 3.16.0). URL: https://mlflow.pocsarcotech.com
+#
+#   helm repo add community-charts https://community-charts.github.io/helm-charts
+#   kubectl create namespace mlflow
+#   kubectl -n mlflow create secret generic mlflow-admin \
+#     --from-literal=username=admin --from-literal=password="$(openssl rand -base64 24 | tr -d '/+=')"
+#   helm upgrade --install mlflow community-charts/mlflow --version 1.11.7 -n mlflow \
+#     -f monitoring/helm/mlflow-values.yaml
+#
+# Senha do admin:
+#   kubectl -n mlflow get secret mlflow-admin -o jsonpath='{.data.password}' | base64 -d
+
+# Volume unico (RWO) para o SQLite, o banco de usuarios e os artefatos: uma replica so,
+# e Recreate para o pod novo nao disputar o volume com o antigo.
+replicaCount: 1
+strategy:
+  type: Recreate
+
+backendStore:
+  defaultSqlitePath: /mlflow/data/mlflow.db
+
+artifactRoot:
+  proxiedArtifactStorage: true
+  defaultArtifactsDestination: /mlflow/data/mlartifacts
+
+auth:
+  enabled: true
+  existingAdminSecret:
+    name: mlflow-admin
+    usernameKey: username
+    passwordKey: password
+  defaultPermission: READ
+  sqliteFullPath: /mlflow/data/   # com a barra final: o chart concatena o nome do arquivo
+
+extraVolumes:
+  - name: mlflow-data
+    persistentVolumeClaim:
+      claimName: mlflow-data
+extraVolumeMounts:
+  - name: mlflow-data
+    mountPath: /mlflow/data
+
+extraDeploy:
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: mlflow-data
+      annotations:
+        helm.sh/resource-policy: keep
+    spec:
+      accessModes: [ReadWriteOnce]
+      storageClassName: gp2
+      resources:
+        requests:
+          storage: 10Gi
+
+# Um worker basta para o laboratorio; com os 4 do padrao o pod estoura 1,5 GiB e e morto (OOM).
+# Em repouso, com 1 worker, o processo ocupa ~1,7 GiB.
+extraArgs:
+  workers: "1"
+
+resources:
+  requests: { cpu: 100m, memory: 1536Mi }
+  limits: { memory: 3Gi }
+
+# DNS: Ingress no ALB compartilhado (group.name mlops-tools), como Grafana e Prometheus.
+# O registro mlflow.pocsarcotech.com no Route53 e um alias A manual para esse ALB.
+ingress:
+  enabled: true
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/group.name: mlops-tools
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+  hosts:
+    - host: mlflow.pocsarcotech.com
+      paths:
+        - path: /
+          pathType: Prefix
+
+# O TLS termina no ALB: a origem que o navegador envia e https, e o chart so deduziria http.
+corsAllowedOrigins:
+  - https://mlflow.pocsarcotech.com
+serverAllowedHosts:
+  - mlflow.pocsarcotech.com

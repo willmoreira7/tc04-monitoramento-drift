@@ -50,7 +50,7 @@
 | Alertas | `src/monitoring/alerts.py` | `evaluate_alerts`: função pura, limiares em `configs/pipeline.yaml` |
 | Rastreamento | `src/monitoring/tracking.py` | Uma execução MLflow por lote, com métricas, alertas, relatório e os eventos de log do lote |
 | Dashboard | `src/monitoring/dashboard.py` | HTML estático com a execução mais recente de cada lote |
-| Prometheus (opcional) | `src/monitoring/prometheus.py` | Envia as métricas do lote ao Pushgateway quando `TC04_PUSHGATEWAY_URL` está definida |
+| Prometheus (opcional) | `src/monitoring/prometheus.py` | Envia as métricas do lote ao Pushgateway quando `TC04_PUSHGATEWAY_URL` está definida, com Basic Auth se houver `TC04_PUSHGATEWAY_USERNAME`/`PASSWORD` |
 | Orquestração | `src/pipeline/monitor.py` | Liga os estágios às peças acima; lote bloqueado ou com falha também é registrado |
 
 Um novo estágio (predição, drift, performance) entra como um bloco
@@ -111,23 +111,26 @@ lotes, estágios, regras do contrato e features.
 **Como usar**
 
 ```bash
-TC04_PUSHGATEWAY_URL=https://pushgateway.pocsarcotech.com uv run python scripts/run_monitoring_demo.py --demo valid
-TC04_PUSHGATEWAY_URL=https://pushgateway.pocsarcotech.com uv run python scripts/run_monitoring_demo.py --demo corrupted  # exit 2
+export TC04_PUSHGATEWAY_URL=https://pushgateway.pocsarcotech.com
+export TC04_PUSHGATEWAY_USERNAME=tc04
+export TC04_PUSHGATEWAY_PASSWORD=8bf663087a8cc14faf5689a7109bcbdd
+uv run python scripts/run_monitoring_demo.py --demo valid
+uv run python scripts/run_monitoring_demo.py --demo corrupted   # exit 2
 ```
 
-| Serviço | URL |
-|---------|-----|
-| Pushgateway | <https://pushgateway.pocsarcotech.com> |
-| MLflow | <https://mlflow.pocsarcotech.com> (login) |
-| Prometheus | <https://prometheus.pocsarcotech.com> |
-| Grafana | <https://grafana.pocsarcotech.com/d/tc04-batch-monitoring> |
+| Serviço | URL | Login |
+|---------|-----|-------|
+| Pushgateway | <https://pushgateway.pocsarcotech.com> | `tc04` / senha acima |
+| Prometheus | <https://prometheus.pocsarcotech.com> | — |
+| Grafana | <https://grafana.pocsarcotech.com/d/tc04-batch-monitoring> | ver [README](../README.md#-ambiente-publicado-opcional) |
+| MLflow | <https://mlflow.pocsarcotech.com> | ver [README](../README.md#-ambiente-publicado-opcional) |
 
-> ⚠️ **O Pushgateway está aberto, sem autenticação** (ambiente de laboratório acadêmico,
-> como o Prometheus da Fase 3): qualquer pessoa com a URL pode enviar ou apagar métricas.
-> Nenhum dado de lote trafega por ele, só agregados. Para fechar, basta desligar o
-> Ingress (`prometheus-pushgateway.ingress.enabled=false`) e usar
-> `kubectl -n monitoring port-forward svc/prometheus-prometheus-pushgateway 9091:9091`
-> com `TC04_PUSHGATEWAY_URL=http://localhost:9091`.
+> 🔐 **O Pushgateway exige usuário e senha** (Basic Auth) em todas as rotas: enviar, apagar
+> e ler métricas. Sem as duas variáveis, ou com a senha errada, ele responde 401, o lote
+> loga `pushgateway_unreachable` com `http_status=401` e segue normalmente. A senha é
+> publicada de propósito (laboratório acadêmico); para trocá-la, basta alterar os values
+> abaixo e rodar o `helm upgrade`. Um Pushgateway local sem login continua funcionando:
+> é só não definir usuário e senha.
 
 O Pushgateway é um subchart do Prometheus da Fase 3 (chart `prometheus-community/prometheus`
 29.30.0, release `prometheus`, namespace `monitoring`), ligado com estes values:
@@ -135,6 +138,9 @@ O Pushgateway é um subchart do Prometheus da Fase 3 (chart `prometheus-communit
 ```yaml
 prometheus-pushgateway:
   enabled: true
+  webConfiguration:
+    basicAuthUsers:
+      tc04: "<senha>"
   ingress:
     enabled: true
     className: alb
@@ -149,6 +155,15 @@ prometheus-pushgateway:
       alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
       alb.ingress.kubernetes.io/ssl-redirect: "443"
       alb.ingress.kubernetes.io/healthcheck-path: /-/healthy
+      # Com login, a checagem de saúde do ALB (sem credencial) recebe 401: o alvo está vivo.
+      alb.ingress.kubernetes.io/success-codes: "200,401"
+
+# O Prometheus coleta do Pushgateway por dentro do cluster e também precisa do login.
+scrapeConfigs:
+  prometheus-pushgateway:
+    basic_auth:
+      username: tc04
+      password: "<senha>"
 ```
 
 O registro `pushgateway.pocsarcotech.com` no Route53 é um alias A para o ALB compartilhado,
@@ -156,8 +171,8 @@ criado à mão (o cluster não tem external-dns).
 
 O dashboard do Grafana é versionado em
 [`monitoring/grafana/tc04-batch-monitoring.json`](../monitoring/grafana/tc04-batch-monitoring.json)
-(Dashboards → New → Import). Pushgateway fora do ar gera só um aviso no log
-(`pushgateway_unreachable`): o lote, o MLflow e o dashboard HTML não são afetados.
+(Dashboards → New → Import). Pushgateway fora do ar ou recusando o login gera só um aviso
+no log (`pushgateway_unreachable`): o lote, o MLflow e o dashboard HTML não são afetados.
 
 > ℹ️ O eixo do tempo do Grafana é o relógio real, e os lotes M01…M06 simulam meses em
 > segundos. Por isso os painéis comparam **lotes lado a lado** (valor mais recente de cada
@@ -222,16 +237,20 @@ administrador), ou pelo terminal:
 ```bash
 gh secret set MLFLOW_TRACKING_USERNAME --body admin
 gh secret set MLFLOW_TRACKING_PASSWORD --body <senha do MLflow>
+gh secret set TC04_PUSHGATEWAY_USERNAME --body tc04
+gh secret set TC04_PUSHGATEWAY_PASSWORD --body <senha do Pushgateway>
 ```
 
 | Nome | Tipo | Obrigatório | Padrão |
 |------|------|-------------|--------|
 | `MLFLOW_TRACKING_USERNAME` | secret | ✅ | — |
 | `MLFLOW_TRACKING_PASSWORD` | secret | ✅ | — |
+| `TC04_PUSHGATEWAY_USERNAME` | secret | ⚪ sem ele, só o MLflow recebe os lotes | — |
+| `TC04_PUSHGATEWAY_PASSWORD` | secret | ⚪ idem | — |
 | `MLFLOW_TRACKING_URI` | variable | ⚪ | `https://mlflow.pocsarcotech.com` |
 | `TC04_PUSHGATEWAY_URL` | variable | ⚪ | `https://pushgateway.pocsarcotech.com` |
 
-A senha é a do [Ambiente Publicado](../README.md#-ambiente-publicado-opcional). As duas
+As senhas são as do [Ambiente Publicado](../README.md#-ambiente-publicado-opcional). As duas
 variáveis só precisam ser criadas se o ambiente mudar de endereço.
 
 ### O que ele faz
@@ -253,7 +272,9 @@ variáveis só precisam ser criadas se o ambiente mudar de endereço.
 | ❌ Vermelho em "Baixar dataset" | UCI fora do ar ou SHA256 diferente | Rodar de novo mais tarde |
 
 O aviso aparece na aba *Summary* da execução e no passo "Verificar o ambiente compartilhado".
-Pushgateway fora do ar não falha nada: o lote loga `pushgateway_unreachable` e segue.
+Pushgateway fora do ar ou sem os secrets dele não falha nada: o lote loga
+`pushgateway_unreachable` (com `http_status=401` quando é o login) e segue — nesse caso o
+MLflow recebe os lotes, mas o Grafana não é atualizado.
 
 ### Como acrescentar lotes
 

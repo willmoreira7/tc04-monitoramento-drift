@@ -67,13 +67,14 @@ Pré-requisito: `uv run python scripts/prepare_data.py`.
 uv run python scripts/run_monitoring_demo.py --demo valid       # exit 0
 uv run python scripts/run_monitoring_demo.py --demo corrupted   # exit 2: bloqueado pelo contrato
 uv run python scripts/build_monitoring_dashboard.py             # regenera o dashboard
-uv run mlflow ui                                                # http://127.0.0.1:5000
+uv run mlflow ui --backend-store-uri sqlite:///mlflow.db         # http://127.0.0.1:5000
 ```
 
 - Exit codes: `0` aprovado · `1` falha inesperada (ex.: dados não preparados) · `2` bloqueado.
   Os três casos ficam registrados no MLflow.
-- O banco é `mlflow.db` na raiz do projeto — o que `uv run mlflow ui` abre por padrão — e
-  os artefatos ficam em `mlartifacts/`. `MLFLOW_TRACKING_URI` aponta para outro servidor.
+- O tracking grava em `mlflow.db` na raiz e os artefatos ficam em `mlartifacts/`. A UI
+  precisa receber a mesma URI explicitamente (não usa automaticamente a URI do código);
+  `MLFLOW_TRACKING_URI` pode apontar para outro servidor.
 - Execuções sobre o dataset sintético geram `dashboard.synthetic.html` (não versionado) e
   nunca aparecem no dashboard real.
 - O lote corrompido passa pela ingestão e é **bloqueado na validação**: nenhuma linha
@@ -318,6 +319,11 @@ publicar de novo não duplica nada lá; no MLflow fica o histórico completo.
 | `auc_roc`, `recall_default`, `ks_score` | float | **Só quando os rótulos chegam** |
 | `alerts_warning`, `alerts_critical` | contagem | Imediatamente |
 
+A integração com Etapa 2 usa `src/monitoring/model_metrics.py`: `build_model_metrics()`
+converte PSI/KS por feature, PSI do score e métricas com rótulo para o esquema aceito pelo
+tracking. Métricas de performance ficam ausentes quando não há rótulos; deltas de queda
+são `max(0, baseline - lote)`.
+
 > ℹ️ Em crédito, o rótulo (inadimplência) chega meses depois da decisão. As métricas de
 > drift são o **alarme antecipado**; as de performance são a **confirmação**. Na
 > simulação, os rótulos de cada lote são revelados no próprio lote para encurtar o ciclo
@@ -333,8 +339,10 @@ publicar de novo não duplica nada lá; no MLflow fica o histórico completo.
 | Falha de estágio (`stage_failure`) | Exceção inesperada | 🔴 Crítico | Ver log JSON do estágio; reexecutar |
 | Drift de feature | PSI ≥ 0,25 | 🔴 Crítico | Abrir análise causal; avaliar impacto antes de retreinar |
 | Drift de feature | 0,10 ≤ PSI < 0,25 | 🟡 Atenção | Acompanhar a tendência nos próximos lotes |
-| Drift de predição | PSI do score ≥ 0,10 | 🟡 Atenção | Checar taxa de aprovação; avisar o negócio |
-| Degradação | Queda de AUC ≥ 0,05 | 🔴 Crítico | Retreino candidato, com o mesmo gate do baseline |
+| Drift de predição | PSI do score ≥ 0,10 / ≥ 0,25 | 🟡 Atenção / 🔴 Crítico | Checar distribuição e taxa de aprovação; investigar causa |
+| Features afetadas | Fração driftada ≥ 0,20 / ≥ 0,50 | 🟡 Atenção / 🔴 Crítico | Acompanhar / análise causal |
+| Degradação AUC | Queda ≥ 0,03 / ≥ 0,05 | 🟡 Atenção / 🔴 Crítico | Revisar / avaliar retreino candidato com gate |
+| Recall de inadimplentes | Queda ≥ 0,05 / ≥ 0,10 | 🟡 Atenção / 🔴 Crítico | Revisar / investigar inadimplentes não detectados |
 | Volume anômalo (`volume_anomaly`) | `rows_in` fora de ±30% de `rows_expected` | 🟡 Atenção | Checar a extração |
 
 > ⚠️ **Retreinar não é a resposta padrão a drift.** Se o drift é nominal (inflação), a

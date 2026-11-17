@@ -99,4 +99,10 @@ monitoring:
     psi_warning: 0.10         # PSI de feature: atencao
     psi_critical: 0.25        # PSI de feature: critico
     score_psi_warning: 0.10   # PSI do score (drift de predicao): atencao
-    auc_drop_critical: 0.05   # queda de AUC em relacao a referencia: critico
+    score_psi_critical: 0.25
+    auc_drop_warning: 0.03
+    auc_drop_critical: 0.05
+    recall_drop_warning: 0.05
+    recall_drop_critical: 0.10
+    drifted_share_warning: 0.20
+    drifted_share_critical: 0.50

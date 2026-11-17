@@ -104,7 +104,8 @@ uv run nbqa ruff notebooks/                            # lint dos notebooks
 ```
 
 Variáveis úteis: `TC04_LOG_FORMAT=json` (logs em JSON) · `TC04_PUSHGATEWAY_URL` (opcional: envia
-as métricas do lote ao Pushgateway/Grafana da Fase 3) · `MLFLOW_TRACKING_URI` (opcional: MLflow
+as métricas do lote ao Pushgateway/Grafana da Fase 3; login em `TC04_PUSHGATEWAY_USERNAME` e
+`TC04_PUSHGATEWAY_PASSWORD`) · `MLFLOW_TRACKING_URI` (opcional: MLflow
 compartilhado em vez do `mlflow.db` local) · `MLFLOW_DISABLE_AGENT_HINT=1`
 (silencia a dica de console do MLflow) · `UV_LINK_MODE=copy` (OneDrive não suporta hardlink).
 

@@ -1,5 +1,6 @@
 """Testes da camada de observabilidade: logs, estagios, alertas, MLflow e dashboard."""
 
+import base64
 import json
 from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -19,7 +20,13 @@ from src.monitoring.alerts import evaluate_alerts
 from src.monitoring.dashboard import build_dashboard, render_dashboard
 from src.monitoring.log import configure_logging, get_logger, read_run_events
 from src.monitoring.model_metrics import build_model_metrics
-from src.monitoring.prometheus import PUSHGATEWAY_ENV, build_registry, push_batch_metrics
+from src.monitoring.prometheus import (
+    PUSHGATEWAY_ENV,
+    PUSHGATEWAY_PASSWORD_ENV,
+    PUSHGATEWAY_USERNAME_ENV,
+    build_registry,
+    push_batch_metrics,
+)
 from src.monitoring.stages import BatchRecorder
 from src.monitoring.tracking import BatchRun, load_batch_runs, log_batch_run
 from src.pipeline import monitor, prepare
@@ -408,14 +415,20 @@ def test_unreachable_gateway_never_breaks_the_batch() -> None:
     assert pushed is False
 
 
-def test_push_sends_one_group_per_batch_and_source(monkeypatch: pytest.MonkeyPatch) -> None:
-    received: list[tuple[str, str, str]] = []
+@pytest.fixture
+def gateway(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[dict[str, str]]]:
+    """Pushgateway falso que exige o login ``tc04:segredo`` e guarda o que recebeu."""
+    received: list[dict[str, str]] = []
+    expected = "Basic " + base64.b64encode(b"tc04:segredo").decode()
 
     class Gateway(BaseHTTPRequestHandler):
         def do_PUT(self) -> None:  # noqa: N802 - nome exigido pelo http.server
             body = self.rfile.read(int(self.headers["Content-Length"])).decode()
-            received.append((self.command, self.path, body))
-            self.send_response(200)
+            authorized = self.headers.get("Authorization") == expected
+            received.append(
+                {"method": self.command, "path": self.path, "body": body, "ok": str(authorized)}
+            )
+            self.send_response(200 if authorized else 401)
             self.end_headers()
 
         def log_message(self, *args: object) -> None:
@@ -424,15 +437,41 @@ def test_push_sends_one_group_per_batch_and_source(monkeypatch: pytest.MonkeyPat
     server = HTTPServer(("127.0.0.1", 0), Gateway)
     Thread(target=server.serve_forever, daemon=True).start()
     monkeypatch.setenv(PUSHGATEWAY_ENV, f"http://127.0.0.1:{server.server_port}")
-    try:
-        pushed = push_batch_metrics(
-            "M01", scenario="control", status="success", source="real", metrics={"rows_in": 2400}
-        )
-    finally:
-        server.shutdown()
+    monkeypatch.delenv(PUSHGATEWAY_USERNAME_ENV, raising=False)
+    monkeypatch.delenv(PUSHGATEWAY_PASSWORD_ENV, raising=False)
+    yield received
+    server.shutdown()
 
-    assert pushed is True
-    [(method, path, body)] = received
-    assert method == "PUT"  # substitui o grupo: series antigas do lote nao sobrevivem
-    assert path == "/metrics/job/tc04_batch/batch_id/M01/source/real"
-    assert "tc04_batch_rows_in 2400.0" in body
+
+def _push() -> bool:
+    return push_batch_metrics(
+        "M01", scenario="control", status="success", source="real", metrics={"rows_in": 2400}
+    )
+
+
+def test_push_sends_one_group_per_batch_and_source(
+    gateway: list[dict[str, str]], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv(PUSHGATEWAY_USERNAME_ENV, "tc04")
+    monkeypatch.setenv(PUSHGATEWAY_PASSWORD_ENV, "segredo")
+
+    assert _push() is True
+    [request] = gateway
+    assert request["ok"] == "True"  # o login foi enviado como Basic Auth
+    assert request["method"] == "PUT"  # substitui o grupo: series antigas nao sobrevivem
+    assert request["path"] == "/metrics/job/tc04_batch/batch_id/M01/source/real"
+    assert "tc04_batch_rows_in 2400.0" in request["body"]
+
+
+def test_rejected_login_never_breaks_the_batch(gateway: list[dict[str, str]]) -> None:
+    """Sem usuario e senha, o Pushgateway responde 401 e o lote segue."""
+    assert _push() is False
+    assert [request["ok"] for request in gateway] == ["False"]
+
+
+def test_wrong_password_never_breaks_the_batch(
+    gateway: list[dict[str, str]], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv(PUSHGATEWAY_USERNAME_ENV, "tc04")
+    monkeypatch.setenv(PUSHGATEWAY_PASSWORD_ENV, "errada")
+    assert _push() is False

@@ -3,7 +3,8 @@
 O pipeline e batch: termina antes de qualquer scrape. O lote entao empurra suas metricas
 para o Pushgateway, de onde o Prometheus as coleta e o Grafana as exibe (ambiente da
 Fase 3). So e ativada com ``TC04_PUSHGATEWAY_URL``; sem a variavel, nada muda -- MLflow e
-o dashboard HTML continuam sendo o caminho obrigatorio.
+o dashboard HTML continuam sendo o caminho obrigatorio. Se o Pushgateway exigir login,
+``TC04_PUSHGATEWAY_USERNAME`` e ``TC04_PUSHGATEWAY_PASSWORD`` sao enviados como Basic Auth.
 
 Cada lote e um grupo no Pushgateway (``batch_id`` + ``source``) e um novo envio substitui
 o grupo inteiro: o Grafana mostra sempre a execucao mais recente de cada lote. A
@@ -12,9 +13,11 @@ cardinalidade e limitada: lotes (M01..M06 + demonstracao), estagios, regras e fe
 
 import os
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any
 
 from prometheus_client import CollectorRegistry, Gauge, push_to_gateway
+from prometheus_client.exposition import basic_auth_handler, default_handler
 
 from src.monitoring.alerts import Alert
 from src.monitoring.log import get_logger
@@ -23,6 +26,8 @@ from src.monitoring.stages import STATUS_VALUES
 logger = get_logger(__name__)
 
 PUSHGATEWAY_ENV = "TC04_PUSHGATEWAY_URL"
+PUSHGATEWAY_USERNAME_ENV = "TC04_PUSHGATEWAY_USERNAME"
+PUSHGATEWAY_PASSWORD_ENV = "TC04_PUSHGATEWAY_PASSWORD"
 JOB = "tc04_batch"
 PREFIX = "tc04_batch_"
 PUSH_TIMEOUT_S = 10
@@ -100,7 +105,9 @@ def push_batch_metrics(
 ) -> bool:
     """Envia as metricas do lote ao Pushgateway, se houver um configurado.
 
-    Camada opcional: Pushgateway ausente ou fora do ar nunca derruba o lote.
+    Camada opcional: Pushgateway ausente, fora do ar ou recusando o login nunca derruba o
+    lote. Com ``TC04_PUSHGATEWAY_USERNAME`` e ``TC04_PUSHGATEWAY_PASSWORD`` definidas, o
+    envio leva Basic Auth.
 
     Args:
         batch_id: Identificador do lote (chave do grupo no Pushgateway).
@@ -112,7 +119,8 @@ def push_batch_metrics(
         gateway: URL do Pushgateway; se omitida, usa ``TC04_PUSHGATEWAY_URL``.
 
     Returns:
-        ``True`` se as metricas foram enviadas; ``False`` se desligado ou inacessivel.
+        ``True`` se as metricas foram enviadas; ``False`` se desligado, inacessivel ou com
+        login recusado.
     """
     gateway = gateway or os.environ.get(PUSHGATEWAY_ENV)
     if not gateway:
@@ -125,9 +133,30 @@ def push_batch_metrics(
             grouping_key={"batch_id": batch_id, "source": source},
             registry=registry,
             timeout=PUSH_TIMEOUT_S,
+            handler=_auth_handler(),
         )
     except OSError as error:
-        logger.warning("pushgateway_unreachable", gateway=gateway, error_type=type(error).__name__)
+        logger.warning(
+            "pushgateway_unreachable",
+            gateway=gateway,
+            error_type=type(error).__name__,
+            http_status=getattr(error, "code", None),  # 401 = login ausente ou errado
+        )
         return False
     logger.info("pushgateway_pushed", gateway=gateway, batch_id=batch_id)
     return True
+
+
+def _auth_handler() -> Callable[..., Callable[[], None]]:
+    """Handler HTTP do envio: com Basic Auth se usuario e senha estiverem no ambiente."""
+    username = os.environ.get(PUSHGATEWAY_USERNAME_ENV)
+    password = os.environ.get(PUSHGATEWAY_PASSWORD_ENV)
+    if not username or not password:
+        return default_handler
+
+    def handler(
+        url: str, method: str, timeout: float | None, headers: list[tuple[str, str]], data: Any
+    ) -> Callable[[], None]:
+        return basic_auth_handler(url, method, timeout, headers, data, username, password)
+
+    return handler

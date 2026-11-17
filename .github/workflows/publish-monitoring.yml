@@ -7,7 +7,9 @@
 # do laboratorio. Aqui, se o ambiente estiver fora do ar ou os secrets nao existirem, a
 # publicacao e pulada com um aviso e o job termina verde.
 #
-# Secrets do repositorio: MLFLOW_TRACKING_USERNAME e MLFLOW_TRACKING_PASSWORD.
+# Secrets do repositorio: MLFLOW_TRACKING_USERNAME e MLFLOW_TRACKING_PASSWORD (obrigatorios);
+# TC04_PUSHGATEWAY_USERNAME e TC04_PUSHGATEWAY_PASSWORD (sem eles o Pushgateway recusa o
+# envio com 401 e so o MLflow recebe os lotes -- o job segue verde).
 # Variaveis opcionais (Settings > Variables): MLFLOW_TRACKING_URI e TC04_PUSHGATEWAY_URL.
 
 name: Publicar monitoramento
@@ -87,6 +89,8 @@ jobs:
           MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
           MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
           TC04_PUSHGATEWAY_URL: ${{ env.SHARED_PUSHGATEWAY_URL }}
+          TC04_PUSHGATEWAY_USERNAME: ${{ secrets.TC04_PUSHGATEWAY_USERNAME }}
+          TC04_PUSHGATEWAY_PASSWORD: ${{ secrets.TC04_PUSHGATEWAY_PASSWORD }}
         run: uv run python scripts/run_monitoring_demo.py --demo valid --scenario contract_demo
 
       # O lote corrompido PRECISA ser bloqueado: exit 2. Qualquer outro codigo falha o job.
@@ -98,6 +102,8 @@ jobs:
           MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
           MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
           TC04_PUSHGATEWAY_URL: ${{ env.SHARED_PUSHGATEWAY_URL }}
+          TC04_PUSHGATEWAY_USERNAME: ${{ secrets.TC04_PUSHGATEWAY_USERNAME }}
+          TC04_PUSHGATEWAY_PASSWORD: ${{ secrets.TC04_PUSHGATEWAY_PASSWORD }}
         run: |
           set +e
           uv run python scripts/run_monitoring_demo.py --demo corrupted --scenario contract_demo

@@ -354,15 +354,18 @@ compartilhado (`MLFLOW_TRACKING_URI`). O pipeline é batch, então cada lote
 **envia** suas métricas a um Pushgateway, que o Prometheus coleta e o Grafana exibe.
 
 ```bash
-TC04_PUSHGATEWAY_URL=https://pushgateway.pocsarcotech.com uv run python scripts/run_monitoring_demo.py --demo valid
-TC04_PUSHGATEWAY_URL=https://pushgateway.pocsarcotech.com uv run python scripts/run_monitoring_demo.py --demo corrupted  # exit 2
+export TC04_PUSHGATEWAY_URL=https://pushgateway.pocsarcotech.com
+export TC04_PUSHGATEWAY_USERNAME=tc04
+export TC04_PUSHGATEWAY_PASSWORD=8bf663087a8cc14faf5689a7109bcbdd
+uv run python scripts/run_monitoring_demo.py --demo valid
+uv run python scripts/run_monitoring_demo.py --demo corrupted   # exit 2
 ```
 
 | Serviço | URL | Login | Senha |
 |---------|-----|-------|-------|
 | Grafana — dashboard do TC04 | <https://grafana.pocsarcotech.com/d/tc04-batch-monitoring> | `admin` | `STbREguNJJg1lfor6j-Gk2jGeVNNip44` |
 | Prometheus | <https://prometheus.pocsarcotech.com> | — | — |
-| Pushgateway | <https://pushgateway.pocsarcotech.com> | — | — |
+| Pushgateway | <https://pushgateway.pocsarcotech.com> | `tc04` | `8bf663087a8cc14faf5689a7109bcbdd` |
 | MLflow — execuções por lote | <https://mlflow.pocsarcotech.com> | `admin` | `53b9885d9f779717dc548b620b63a0d6` |
 
 - No Prometheus, as séries do projeto começam com `tc04_` (ex.: `tc04_batch_status`,
@@ -383,8 +386,8 @@ TC04_PUSHGATEWAY_URL=https://pushgateway.pocsarcotech.com uv run python scripts/
 
 > ℹ️ Este ambiente é **demonstração** e não substitui a evidência versionada. Sem as variáveis
 > `TC04_PUSHGATEWAY_URL` e `MLFLOW_TRACKING_URI` nada é enviado, e o avaliador vê tudo pelo MLflow local e por
-> `reports/monitoring/dashboard.html`. O Pushgateway está aberto, sem autenticação
-> (laboratório acadêmico); só métricas agregadas trafegam por ele. Detalhes em
+> `reports/monitoring/dashboard.html`. O Pushgateway exige o login da tabela para enviar,
+> apagar ou ler métricas; só métricas agregadas trafegam por ele. Detalhes em
 > [docs/MONITORING.md](docs/MONITORING.md#-grafana-e-prometheus-opcional).
 
 ---

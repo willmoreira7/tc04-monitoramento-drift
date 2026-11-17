@@ -37,15 +37,30 @@ def evaluate_alerts(
     alerts += _volume_alerts(metrics, config["contract"]["warnings"]["volume_tolerance"])
     for key, value in metrics.items():
         if key == "psi_score":
-            if value >= rules["score_psi_warning"]:
+            if value >= rules["score_psi_critical"]:
+                alerts.append(_alert(key, SEVERITY_CRITICAL, "investigate_score_drift"))
+            elif value >= rules["score_psi_warning"]:
                 alerts.append(_alert(key, SEVERITY_WARNING, "review_approval_rate"))
         elif key.startswith("psi_"):
             if value >= rules["psi_critical"]:
                 alerts.append(_alert(key, SEVERITY_CRITICAL, "open_causal_analysis"))
             elif value >= rules["psi_warning"]:
                 alerts.append(_alert(key, SEVERITY_WARNING, "monitor_trend"))
-        elif key == "auc_drop" and value >= rules["auc_drop_critical"]:
-            alerts.append(_alert(key, SEVERITY_CRITICAL, "evaluate_retraining"))
+        elif key == "auc_drop":
+            if value >= rules["auc_drop_critical"]:
+                alerts.append(_alert(key, SEVERITY_CRITICAL, "evaluate_retraining"))
+            elif value >= rules["auc_drop_warning"]:
+                alerts.append(_alert(key, SEVERITY_WARNING, "review_performance"))
+        elif key == "recall_drop":
+            if value >= rules["recall_drop_critical"]:
+                alerts.append(_alert(key, SEVERITY_CRITICAL, "review_missed_defaults"))
+            elif value >= rules["recall_drop_warning"]:
+                alerts.append(_alert(key, SEVERITY_WARNING, "review_recall_trend"))
+        elif key == "share_features_drifted":
+            if value >= rules["drifted_share_critical"]:
+                alerts.append(_alert(key, SEVERITY_CRITICAL, "open_causal_analysis"))
+            elif value >= rules["drifted_share_warning"]:
+                alerts.append(_alert(key, SEVERITY_WARNING, "monitor_feature_drift"))
     return alerts
 
 

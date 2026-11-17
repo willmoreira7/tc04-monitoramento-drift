@@ -18,6 +18,7 @@ from src.data.synthetic import generate_synthetic
 from src.monitoring.alerts import evaluate_alerts
 from src.monitoring.dashboard import build_dashboard, render_dashboard
 from src.monitoring.log import configure_logging, get_logger, read_run_events
+from src.monitoring.model_metrics import build_model_metrics
 from src.monitoring.prometheus import PUSHGATEWAY_ENV, build_registry, push_batch_metrics
 from src.monitoring.stages import BatchRecorder
 from src.monitoring.tracking import BatchRun, load_batch_runs, log_batch_run
@@ -130,6 +131,62 @@ def test_alert_rules_use_configured_psi_thresholds() -> None:
         ("psi_LIMIT_BAL", "warning"),
         ("psi_PAY_0", "critical"),
         ("psi_score", "warning"),
+    ]
+
+
+def test_model_metrics_adapter_emits_tracking_contract() -> None:
+    metrics = build_model_metrics(
+        {"PAY_0": 0.30, "LIMIT_BAL": 0.05},
+        feature_ks_d={"PAY_0": 0.12},
+        score_psi=0.26,
+        baseline_auc=0.80,
+        batch_auc=0.74,
+        baseline_recall=0.70,
+        batch_recall=0.58,
+    )
+    assert metrics == {
+        "psi_PAY_0": 0.30,
+        "psi_LIMIT_BAL": 0.05,
+        "ks_d_PAY_0": 0.12,
+        "psi_score": 0.26,
+        "n_features_drifted": 1.0,
+        "share_features_drifted": 0.5,
+        "auc_roc": 0.74,
+        "auc_drop": 0.06,
+        "recall_default": 0.58,
+        "recall_drop": 0.12,
+    }
+
+
+def test_model_metrics_omit_delayed_performance_without_labels() -> None:
+    metrics = build_model_metrics({"PAY_0": 0.12})
+    assert "auc_roc" not in metrics
+    assert "recall_default" not in metrics
+    assert "auc_drop" not in metrics
+    assert "recall_drop" not in metrics
+
+
+def test_model_metrics_reject_invalid_values() -> None:
+    with pytest.raises(ValueError, match="PSI"):
+        build_model_metrics({"PAY_0": float("nan")})
+    with pytest.raises(ValueError, match="KS D"):
+        build_model_metrics({}, feature_ks_d={"PAY_0": 1.2})
+
+
+def test_alert_thresholds_include_score_auc_recall_and_feature_share() -> None:
+    alerts = evaluate_alerts(
+        {
+            "psi_score": 0.25,
+            "auc_drop": 0.03,
+            "recall_drop": 0.05,
+            "share_features_drifted": 0.20,
+        }
+    )
+    assert [(alert["name"], alert["severity"]) for alert in alerts] == [
+        ("psi_score", "critical"),
+        ("auc_drop", "warning"),
+        ("recall_drop", "warning"),
+        ("share_features_drifted", "warning"),
     ]
 
 

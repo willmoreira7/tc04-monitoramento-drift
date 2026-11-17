@@ -273,7 +273,7 @@ são avaliados e a execução é registrada no MLflow local — inclusive a do l
 uv run python scripts/run_monitoring_demo.py --demo valid       # exit 0
 uv run python scripts/run_monitoring_demo.py --demo corrupted   # exit 2: bloqueado pelo contrato
 uv run python scripts/build_monitoring_dashboard.py             # regenera o dashboard
-uv run mlflow ui                                                # execuções em http://127.0.0.1:5000
+uv run mlflow ui --backend-store-uri sqlite:///mlflow.db         # execuções em http://127.0.0.1:5000
 ```
 
 | Evidência | Onde |

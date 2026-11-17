@@ -397,7 +397,7 @@ TC04_PUSHGATEWAY_URL=https://pushgateway.pocsarcotech.com uv run python scripts/
 | **1** | Validação de Dados e Bibliotecas de Qualidade | Contrato Pandera + lote ruim bloqueado + modelo baseline | ✅ Concluída |
 | **2** | Data Drift | Lotes simulados + relatórios Evidently (PSI/KS) | ⬜ Não iniciada |
 | **3** | Monitoramento de Pipelines e Infraestrutura | Logs centralizados + MLflow + dashboard | 🟡 Em andamento |
-| **4** | Privacy by Design e by Default | Governança LGPD + análise causal + vídeo STAR | ⬜ Não iniciada |
+| **4** | Privacy by Design e by Default | Governança LGPD + análise causal + vídeo STAR | 🟡 Em andamento |
 
 > 📄 Tarefas, critérios de aceite e conformidade item a item com o enunciado em
 > **[docs/ROADMAP.md](docs/ROADMAP.md)**.
@@ -606,4 +606,4 @@ intervenção, não uma correlação.
 
 ---
 
-**Última atualização:** 2026-11-10
+**Última atualização:** 2026-11-16

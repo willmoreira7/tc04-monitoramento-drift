@@ -107,6 +107,11 @@ jobs:
           uv run python scripts/build_monitoring_dashboard.py --source synthetic
           test -s reports/monitoring/dashboard.synthetic.html
 
+      - name: Drift - lotes M01..M06 (sintetico)
+        run: |
+          uv run python scripts/run_drift_simulation.py
+          test -s reports/drift/drift_summary.synthetic.json
+
       - name: pytest
         run: uv run pytest --cov=src --cov-report=term-missing
 
@@ -153,9 +158,17 @@ jobs:
           echo "exit code: $code"
           test "$code" -eq 2
 
-      # Evidencia versionada precisa ser reproduzida byte a byte num clone limpo.
+      - name: Drift - lotes M01..M06 (dataset real)
+        run: uv run python scripts/run_drift_simulation.py
+
+      # Evidencia versionada precisa ser reproduzida byte a byte num clone limpo. Os HTML do
+      # Evidently e o dashboard levam ids e horarios de cada execucao: os numeros deles sao
+      # conferidos pelo drift_summary.json e pelos relatorios de validacao de cada lote.
       - name: Relatorios versionados reproduzidos
-        run: git diff --exit-code reports/
+        run: >-
+          git diff --exit-code -- reports/
+          ':(exclude)reports/drift/*.html'
+          ':(exclude)reports/monitoring/dashboard.html'
 
   commitlint:
     name: Commitlint

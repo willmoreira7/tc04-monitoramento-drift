@@ -1,0 +1,1179 @@
+{
+  "source": "real",
+  "source_sha256": "45bcf4df62ff2e237a74eb155cabfb4bbbc171219a0637daef44fdad07503dd0",
+  "seed": 42,
+  "library_versions": {
+    "evidently": "0.7.23",
+    "scikit-learn": "1.9.1",
+    "xgboost": "3.4.1"
+  },
+  "reference": {
+    "window": [
+      "validation",
+      "test"
+    ],
+    "rows": 4495,
+    "baseline": {
+      "auc": 0.7495,
+      "ks": 0.3909,
+      "recall_default": 0.5809,
+      "precision_default": 0.465,
+      "approval_rate": 0.7235
+    }
+  },
+  "monitored": {
+    "features": [
+      "LIMIT_BAL",
+      "PAY_0",
+      "PAY_2",
+      "PAY_3",
+      "PAY_4",
+      "PAY_5",
+      "PAY_6",
+      "BILL_AMT1",
+      "BILL_AMT2",
+      "BILL_AMT3",
+      "BILL_AMT4",
+      "BILL_AMT5",
+      "BILL_AMT6",
+      "PAY_AMT1",
+      "PAY_AMT2",
+      "PAY_AMT3",
+      "PAY_AMT4",
+      "PAY_AMT5",
+      "PAY_AMT6"
+    ],
+    "population": [
+      "AGE"
+    ]
+  },
+  "thresholds": {
+    "psi_warning": 0.1,
+    "psi_critical": 0.25,
+    "score_psi_warning": 0.1,
+    "score_psi_critical": 0.25,
+    "auc_drop_warning": 0.03,
+    "auc_drop_critical": 0.05,
+    "recall_drop_warning": 0.05,
+    "recall_drop_critical": 0.1,
+    "drifted_share_warning": 0.2,
+    "drifted_share_critical": 0.5
+  },
+  "batches": {
+    "M01": {
+      "narrative": "Mes normal - lote de controle, sem perturbacao",
+      "perturbations": {},
+      "status": "success",
+      "contract_warnings": {},
+      "alerts": [],
+      "default_rate": 0.2146,
+      "columns": {
+        "LIMIT_BAL": {
+          "psi": 0.006,
+          "ks_d": 0.0259,
+          "ks_pvalue": 0.239,
+          "level": "stable"
+        },
+        "PAY_0": {
+          "psi": 0.0058,
+          "ks_d": 0.0218,
+          "ks_pvalue": 0.4366,
+          "level": "stable"
+        },
+        "PAY_2": {
+          "psi": 0.0086,
+          "ks_d": 0.03,
+          "ks_pvalue": 0.1164,
+          "level": "stable"
+        },
+        "PAY_3": {
+          "psi": 0.0053,
+          "ks_d": 0.0171,
+          "ks_pvalue": 0.7391,
+          "level": "stable"
+        },
+        "PAY_4": {
+          "psi": 0.0067,
+          "ks_d": 0.0131,
+          "ks_pvalue": 0.9481,
+          "level": "stable"
+        },
+        "PAY_5": {
+          "psi": 0.004,
+          "ks_d": 0.0141,
+          "ks_pvalue": 0.9092,
+          "level": "stable"
+        },
+        "PAY_6": {
+          "psi": 0.0035,
+          "ks_d": 0.0086,
+          "ks_pvalue": 0.9998,
+          "level": "stable"
+        },
+        "BILL_AMT1": {
+          "psi": 0.0113,
+          "ks_d": 0.0279,
+          "ks_pvalue": 0.1714,
+          "level": "stable"
+        },
+        "BILL_AMT2": {
+          "psi": 0.0064,
+          "ks_d": 0.0297,
+          "ks_pvalue": 0.1239,
+          "level": "stable"
+        },
+        "BILL_AMT3": {
+          "psi": 0.0064,
+          "ks_d": 0.0184,
+          "ks_pvalue": 0.6562,
+          "level": "stable"
+        },
+        "BILL_AMT4": {
+          "psi": 0.0034,
+          "ks_d": 0.0233,
+          "ks_pvalue": 0.3549,
+          "level": "stable"
+        },
+        "BILL_AMT5": {
+          "psi": 0.0108,
+          "ks_d": 0.0176,
+          "ks_pvalue": 0.7094,
+          "level": "stable"
+        },
+        "BILL_AMT6": {
+          "psi": 0.0097,
+          "ks_d": 0.0184,
+          "ks_pvalue": 0.6559,
+          "level": "stable"
+        },
+        "PAY_AMT1": {
+          "psi": 0.0015,
+          "ks_d": 0.0249,
+          "ks_pvalue": 0.2819,
+          "level": "stable"
+        },
+        "PAY_AMT2": {
+          "psi": 0.0018,
+          "ks_d": 0.0219,
+          "ks_pvalue": 0.4306,
+          "level": "stable"
+        },
+        "PAY_AMT3": {
+          "psi": 0.0022,
+          "ks_d": 0.0167,
+          "ks_pvalue": 0.7677,
+          "level": "stable"
+        },
+        "PAY_AMT4": {
+          "psi": 0.0051,
+          "ks_d": 0.0226,
+          "ks_pvalue": 0.392,
+          "level": "stable"
+        },
+        "PAY_AMT5": {
+          "psi": 0.0048,
+          "ks_d": 0.0186,
+          "ks_pvalue": 0.6426,
+          "level": "stable"
+        },
+        "PAY_AMT6": {
+          "psi": 0.0055,
+          "ks_d": 0.0127,
+          "ks_pvalue": 0.9596,
+          "level": "stable"
+        },
+        "AGE": {
+          "psi": 0.007,
+          "ks_d": 0.0243,
+          "ks_pvalue": 0.3083,
+          "level": "stable"
+        },
+        "score": {
+          "psi": 0.009,
+          "ks_d": 0.0244,
+          "ks_pvalue": 0.3033,
+          "level": "stable"
+        }
+      },
+      "drifted": [],
+      "share_features_drifted": 0.0,
+      "performance": {
+        "auc": 0.7496,
+        "ks": 0.4075,
+        "recall_default": 0.5845,
+        "precision_default": 0.4688,
+        "approval_rate": 0.7325,
+        "auc_change": 0.0001,
+        "recall_change": 0.0036
+      },
+      "performance_alert": false,
+      "expected": {
+        "drifted": [],
+        "performance_alert": false
+      },
+      "expectation_met": true
+    },
+    "M02": {
+      "narrative": "Inflacao comeca - faturas 10% maiores, mesmo risco",
+      "perturbations": {
+        "scale": [
+          {
+            "columns": [
+              "BILL_AMT1",
+              "BILL_AMT2",
+              "BILL_AMT3",
+              "BILL_AMT4",
+              "BILL_AMT5",
+              "BILL_AMT6"
+            ],
+            "factor": 1.1
+          }
+        ]
+      },
+      "status": "success",
+      "contract_warnings": {},
+      "alerts": [],
+      "default_rate": 0.2146,
+      "columns": {
+        "LIMIT_BAL": {
+          "psi": 0.006,
+          "ks_d": 0.0259,
+          "ks_pvalue": 0.239,
+          "level": "stable"
+        },
+        "PAY_0": {
+          "psi": 0.0058,
+          "ks_d": 0.0218,
+          "ks_pvalue": 0.4366,
+          "level": "stable"
+        },
+        "PAY_2": {
+          "psi": 0.0086,
+          "ks_d": 0.03,
+          "ks_pvalue": 0.1164,
+          "level": "stable"
+        },
+        "PAY_3": {
+          "psi": 0.0053,
+          "ks_d": 0.0171,
+          "ks_pvalue": 0.7391,
+          "level": "stable"
+        },
+        "PAY_4": {
+          "psi": 0.0067,
+          "ks_d": 0.0131,
+          "ks_pvalue": 0.9481,
+          "level": "stable"
+        },
+        "PAY_5": {
+          "psi": 0.004,
+          "ks_d": 0.0141,
+          "ks_pvalue": 0.9092,
+          "level": "stable"
+        },
+        "PAY_6": {
+          "psi": 0.0035,
+          "ks_d": 0.0086,
+          "ks_pvalue": 0.9998,
+          "level": "stable"
+        },
+        "BILL_AMT1": {
+          "psi": 0.0158,
+          "ks_d": 0.0467,
+          "ks_pvalue": 0.0021,
+          "level": "stable"
+        },
+        "BILL_AMT2": {
+          "psi": 0.0111,
+          "ks_d": 0.0465,
+          "ks_pvalue": 0.0022,
+          "level": "stable"
+        },
+        "BILL_AMT3": {
+          "psi": 0.0082,
+          "ks_d": 0.0423,
+          "ks_pvalue": 0.007,
+          "level": "stable"
+        },
+        "BILL_AMT4": {
+          "psi": 0.0078,
+          "ks_d": 0.0394,
+          "ks_pvalue": 0.0149,
+          "level": "stable"
+        },
+        "BILL_AMT5": {
+          "psi": 0.0137,
+          "ks_d": 0.0517,
+          "ks_pvalue": 0.0004,
+          "level": "stable"
+        },
+        "BILL_AMT6": {
+          "psi": 0.0162,
+          "ks_d": 0.0446,
+          "ks_pvalue": 0.0038,
+          "level": "stable"
+        },
+        "PAY_AMT1": {
+          "psi": 0.0015,
+          "ks_d": 0.0249,
+          "ks_pvalue": 0.2819,
+          "level": "stable"
+        },
+        "PAY_AMT2": {
+          "psi": 0.0018,
+          "ks_d": 0.0219,
+          "ks_pvalue": 0.4306,
+          "level": "stable"
+        },
+        "PAY_AMT3": {
+          "psi": 0.0022,
+          "ks_d": 0.0167,
+          "ks_pvalue": 0.7677,
+          "level": "stable"
+        },
+        "PAY_AMT4": {
+          "psi": 0.0051,
+          "ks_d": 0.0226,
+          "ks_pvalue": 0.392,
+          "level": "stable"
+        },
+        "PAY_AMT5": {
+          "psi": 0.0048,
+          "ks_d": 0.0186,
+          "ks_pvalue": 0.6426,
+          "level": "stable"
+        },
+        "PAY_AMT6": {
+          "psi": 0.0055,
+          "ks_d": 0.0127,
+          "ks_pvalue": 0.9596,
+          "level": "stable"
+        },
+        "AGE": {
+          "psi": 0.007,
+          "ks_d": 0.0243,
+          "ks_pvalue": 0.3083,
+          "level": "stable"
+        },
+        "score": {
+          "psi": 0.006,
+          "ks_d": 0.0205,
+          "ks_pvalue": 0.5189,
+          "level": "stable"
+        }
+      },
+      "drifted": [],
+      "share_features_drifted": 0.0,
+      "performance": {
+        "auc": 0.7489,
+        "ks": 0.4027,
+        "recall_default": 0.5825,
+        "precision_default": 0.4637,
+        "approval_rate": 0.7304,
+        "auc_change": -0.0006,
+        "recall_change": 0.0016
+      },
+      "performance_alert": false,
+      "expected": {
+        "drifted": [],
+        "performance_alert": false
+      },
+      "expectation_met": true
+    },
+    "M03": {
+      "narrative": "Novos perfis - mais clientes jovens, inflacao acumulada de 25%",
+      "perturbations": {
+        "resample": [
+          {
+            "column": "AGE",
+            "below": 30,
+            "weight": 3.0
+          }
+        ],
+        "scale": [
+          {
+            "columns": [
+              "BILL_AMT1",
+              "BILL_AMT2",
+              "BILL_AMT3",
+              "BILL_AMT4",
+              "BILL_AMT5",
+              "BILL_AMT6"
+            ],
+            "factor": 1.25
+          }
+        ]
+      },
+      "status": "success",
+      "contract_warnings": {
+        "W1": 2
+      },
+      "alerts": [
+        {
+          "name": "psi_AGE",
+          "severity": "warning",
+          "action": "monitor_trend"
+        }
+      ],
+      "default_rate": 0.215,
+      "columns": {
+        "LIMIT_BAL": {
+          "psi": 0.0143,
+          "ks_d": 0.0454,
+          "ks_pvalue": 0.003,
+          "level": "stable"
+        },
+        "PAY_0": {
+          "psi": 0.003,
+          "ks_d": 0.0098,
+          "ks_pvalue": 0.9978,
+          "level": "stable"
+        },
+        "PAY_2": {
+          "psi": 0.0041,
+          "ks_d": 0.0129,
+          "ks_pvalue": 0.953,
+          "level": "stable"
+        },
+        "PAY_3": {
+          "psi": 0.0105,
+          "ks_d": 0.0191,
+          "ks_pvalue": 0.6081,
+          "level": "stable"
+        },
+        "PAY_4": {
+          "psi": 0.0127,
+          "ks_d": 0.0285,
+          "ks_pvalue": 0.1526,
+          "level": "stable"
+        },
+        "PAY_5": {
+          "psi": 0.012,
+          "ks_d": 0.0309,
+          "ks_pvalue": 0.0982,
+          "level": "stable"
+        },
+        "PAY_6": {
+          "psi": 0.0093,
+          "ks_d": 0.0316,
+          "ks_pvalue": 0.0862,
+          "level": "stable"
+        },
+        "BILL_AMT1": {
+          "psi": 0.0202,
+          "ks_d": 0.0612,
+          "ks_pvalue": 0.0,
+          "level": "stable"
+        },
+        "BILL_AMT2": {
+          "psi": 0.0185,
+          "ks_d": 0.0571,
+          "ks_pvalue": 0.0001,
+          "level": "stable"
+        },
+        "BILL_AMT3": {
+          "psi": 0.0238,
+          "ks_d": 0.0651,
+          "ks_pvalue": 0.0,
+          "level": "stable"
+        },
+        "BILL_AMT4": {
+          "psi": 0.0155,
+          "ks_d": 0.0648,
+          "ks_pvalue": 0.0,
+          "level": "stable"
+        },
+        "BILL_AMT5": {
+          "psi": 0.0193,
+          "ks_d": 0.0684,
+          "ks_pvalue": 0.0,
+          "level": "stable"
+        },
+        "BILL_AMT6": {
+          "psi": 0.0097,
+          "ks_d": 0.074,
+          "ks_pvalue": 0.0,
+          "level": "stable"
+        },
+        "PAY_AMT1": {
+          "psi": 0.006,
+          "ks_d": 0.027,
+          "ks_pvalue": 0.1983,
+          "level": "stable"
+        },
+        "PAY_AMT2": {
+          "psi": 0.0033,
+          "ks_d": 0.0252,
+          "ks_pvalue": 0.2669,
+          "level": "stable"
+        },
+        "PAY_AMT3": {
+          "psi": 0.0028,
+          "ks_d": 0.0237,
+          "ks_pvalue": 0.3387,
+          "level": "stable"
+        },
+        "PAY_AMT4": {
+          "psi": 0.0074,
+          "ks_d": 0.0195,
+          "ks_pvalue": 0.5827,
+          "level": "stable"
+        },
+        "PAY_AMT5": {
+          "psi": 0.0042,
+          "ks_d": 0.0297,
+          "ks_pvalue": 0.1244,
+          "level": "stable"
+        },
+        "PAY_AMT6": {
+          "psi": 0.0054,
+          "ks_d": 0.0301,
+          "ks_pvalue": 0.1152,
+          "level": "stable"
+        },
+        "AGE": {
+          "psi": 0.1524,
+          "ks_d": 0.2033,
+          "ks_pvalue": 0.0,
+          "level": "warning"
+        },
+        "score": {
+          "psi": 0.0113,
+          "ks_d": 0.0374,
+          "ks_pvalue": 0.0242,
+          "level": "stable"
+        }
+      },
+      "drifted": [
+        "AGE"
+      ],
+      "share_features_drifted": 0.0,
+      "performance": {
+        "auc": 0.7654,
+        "ks": 0.4362,
+        "recall_default": 0.6221,
+        "precision_default": 0.4679,
+        "approval_rate": 0.7142,
+        "auc_change": 0.016,
+        "recall_change": 0.0412
+      },
+      "performance_alert": false,
+      "expected": {
+        "drifted": [
+          "AGE"
+        ],
+        "performance_alert": false
+      },
+      "expectation_met": true
+    },
+    "M04": {
+      "narrative": "Aperto de credito - M03 com mais atrasos e limites 15% menores",
+      "perturbations": {
+        "resample": [
+          {
+            "column": "AGE",
+            "below": 30,
+            "weight": 3.0
+          },
+          {
+            "column": "PAY_0",
+            "at_least": 2,
+            "weight": 4.0
+          }
+        ],
+        "scale": [
+          {
+            "columns": [
+              "BILL_AMT1",
+              "BILL_AMT2",
+              "BILL_AMT3",
+              "BILL_AMT4",
+              "BILL_AMT5",
+              "BILL_AMT6"
+            ],
+            "factor": 1.25
+          },
+          {
+            "columns": [
+              "LIMIT_BAL"
+            ],
+            "factor": 0.85
+          }
+        ]
+      },
+      "status": "success",
+      "contract_warnings": {
+        "W1": 3,
+        "W3": 678
+      },
+      "alerts": [
+        {
+          "name": "psi_LIMIT_BAL",
+          "severity": "warning",
+          "action": "monitor_trend"
+        },
+        {
+          "name": "psi_PAY_0",
+          "severity": "warning",
+          "action": "monitor_trend"
+        },
+        {
+          "name": "psi_score",
+          "severity": "warning",
+          "action": "review_approval_rate"
+        },
+        {
+          "name": "psi_AGE",
+          "severity": "warning",
+          "action": "monitor_trend"
+        }
+      ],
+      "default_rate": 0.3196,
+      "columns": {
+        "LIMIT_BAL": {
+          "psi": 0.2269,
+          "ks_d": 0.1978,
+          "ks_pvalue": 0.0,
+          "level": "warning"
+        },
+        "PAY_0": {
+          "psi": 0.2131,
+          "ks_d": 0.175,
+          "ks_pvalue": 0.0,
+          "level": "warning"
+        },
+        "PAY_2": {
+          "psi": 0.0792,
+          "ks_d": 0.1048,
+          "ks_pvalue": 0.0,
+          "level": "stable"
+        },
+        "PAY_3": {
+          "psi": 0.0562,
+          "ks_d": 0.0783,
+          "ks_pvalue": 0.0,
+          "level": "stable"
+        },
+        "PAY_4": {
+          "psi": 0.063,
+          "ks_d": 0.0806,
+          "ks_pvalue": 0.0,
+          "level": "stable"
+        },
+        "PAY_5": {
+          "psi": 0.0588,
+          "ks_d": 0.0792,
+          "ks_pvalue": 0.0,
+          "level": "stable"
+        },
+        "PAY_6": {
+          "psi": 0.0591,
+          "ks_d": 0.0816,
+          "ks_pvalue": 0.0,
+          "level": "stable"
+        },
+        "BILL_AMT1": {
+          "psi": 0.0314,
+          "ks_d": 0.094,
+          "ks_pvalue": 0.0,
+          "level": "stable"
+        },
+        "BILL_AMT2": {
+          "psi": 0.0288,
+          "ks_d": 0.0926,
+          "ks_pvalue": 0.0,
+          "level": "stable"
+        },
+        "BILL_AMT3": {
+          "psi": 0.0346,
+          "ks_d": 0.1032,
+          "ks_pvalue": 0.0,
+          "level": "stable"
+        },
+        "BILL_AMT4": {
+          "psi": 0.0248,
+          "ks_d": 0.1081,
+          "ks_pvalue": 0.0,
+          "level": "stable"
+        },
+        "BILL_AMT5": {
+          "psi": 0.0558,
+          "ks_d": 0.1126,
+          "ks_pvalue": 0.0,
+          "level": "stable"
+        },
+        "BILL_AMT6": {
+          "psi": 0.0383,
+          "ks_d": 0.1206,
+          "ks_pvalue": 0.0,
+          "level": "stable"
+        },
+        "PAY_AMT1": {
+          "psi": 0.0013,
+          "ks_d": 0.0393,
+          "ks_pvalue": 0.0156,
+          "level": "stable"
+        },
+        "PAY_AMT2": {
+          "psi": 0.0027,
+          "ks_d": 0.0476,
+          "ks_pvalue": 0.0016,
+          "level": "stable"
+        },
+        "PAY_AMT3": {
+          "psi": 0.0053,
+          "ks_d": 0.0549,
+          "ks_pvalue": 0.0002,
+          "level": "stable"
+        },
+        "PAY_AMT4": {
+          "psi": 0.0045,
+          "ks_d": 0.0398,
+          "ks_pvalue": 0.0134,
+          "level": "stable"
+        },
+        "PAY_AMT5": {
+          "psi": 0.0112,
+          "ks_d": 0.0459,
+          "ks_pvalue": 0.0026,
+          "level": "stable"
+        },
+        "PAY_AMT6": {
+          "psi": 0.0087,
+          "ks_d": 0.0444,
+          "ks_pvalue": 0.004,
+          "level": "stable"
+        },
+        "AGE": {
+          "psi": 0.1927,
+          "ks_d": 0.225,
+          "ks_pvalue": 0.0,
+          "level": "warning"
+        },
+        "score": {
+          "psi": 0.1276,
+          "ks_d": 0.1515,
+          "ks_pvalue": 0.0,
+          "level": "warning"
+        }
+      },
+      "drifted": [
+        "LIMIT_BAL",
+        "PAY_0",
+        "AGE"
+      ],
+      "share_features_drifted": 0.1053,
+      "performance": {
+        "auc": 0.793,
+        "ks": 0.479,
+        "recall_default": 0.7419,
+        "precision_default": 0.5589,
+        "approval_rate": 0.5758,
+        "auc_change": 0.0435,
+        "recall_change": 0.1609
+      },
+      "performance_alert": false,
+      "expected": {
+        "drifted": [
+          "AGE",
+          "LIMIT_BAL",
+          "PAY_0"
+        ],
+        "performance_alert": false
+      },
+      "expectation_met": true
+    },
+    "M05": {
+      "narrative": "Concept drift - clientes em dia e endividados passam a inadimplir",
+      "perturbations": {
+        "relabel": {
+          "min_utilization": 0.5,
+          "max_pay_status": 0,
+          "probability": 0.3
+        }
+      },
+      "status": "success",
+      "contract_warnings": {},
+      "alerts": [
+        {
+          "name": "auc_drop",
+          "severity": "critical",
+          "action": "evaluate_retraining"
+        },
+        {
+          "name": "recall_drop",
+          "severity": "critical",
+          "action": "review_missed_defaults"
+        }
+      ],
+      "default_rate": 0.285,
+      "columns": {
+        "LIMIT_BAL": {
+          "psi": 0.006,
+          "ks_d": 0.0259,
+          "ks_pvalue": 0.239,
+          "level": "stable"
+        },
+        "PAY_0": {
+          "psi": 0.0058,
+          "ks_d": 0.0218,
+          "ks_pvalue": 0.4366,
+          "level": "stable"
+        },
+        "PAY_2": {
+          "psi": 0.0086,
+          "ks_d": 0.03,
+          "ks_pvalue": 0.1164,
+          "level": "stable"
+        },
+        "PAY_3": {
+          "psi": 0.0053,
+          "ks_d": 0.0171,
+          "ks_pvalue": 0.7391,
+          "level": "stable"
+        },
+        "PAY_4": {
+          "psi": 0.0067,
+          "ks_d": 0.0131,
+          "ks_pvalue": 0.9481,
+          "level": "stable"
+        },
+        "PAY_5": {
+          "psi": 0.004,
+          "ks_d": 0.0141,
+          "ks_pvalue": 0.9092,
+          "level": "stable"
+        },
+        "PAY_6": {
+          "psi": 0.0035,
+          "ks_d": 0.0086,
+          "ks_pvalue": 0.9998,
+          "level": "stable"
+        },
+        "BILL_AMT1": {
+          "psi": 0.0113,
+          "ks_d": 0.0279,
+          "ks_pvalue": 0.1714,
+          "level": "stable"
+        },
+        "BILL_AMT2": {
+          "psi": 0.0064,
+          "ks_d": 0.0297,
+          "ks_pvalue": 0.1239,
+          "level": "stable"
+        },
+        "BILL_AMT3": {
+          "psi": 0.0064,
+          "ks_d": 0.0184,
+          "ks_pvalue": 0.6562,
+          "level": "stable"
+        },
+        "BILL_AMT4": {
+          "psi": 0.0034,
+          "ks_d": 0.0233,
+          "ks_pvalue": 0.3549,
+          "level": "stable"
+        },
+        "BILL_AMT5": {
+          "psi": 0.0108,
+          "ks_d": 0.0176,
+          "ks_pvalue": 0.7094,
+          "level": "stable"
+        },
+        "BILL_AMT6": {
+          "psi": 0.0097,
+          "ks_d": 0.0184,
+          "ks_pvalue": 0.6559,
+          "level": "stable"
+        },
+        "PAY_AMT1": {
+          "psi": 0.0015,
+          "ks_d": 0.0249,
+          "ks_pvalue": 0.2819,
+          "level": "stable"
+        },
+        "PAY_AMT2": {
+          "psi": 0.0018,
+          "ks_d": 0.0219,
+          "ks_pvalue": 0.4306,
+          "level": "stable"
+        },
+        "PAY_AMT3": {
+          "psi": 0.0022,
+          "ks_d": 0.0167,
+          "ks_pvalue": 0.7677,
+          "level": "stable"
+        },
+        "PAY_AMT4": {
+          "psi": 0.0051,
+          "ks_d": 0.0226,
+          "ks_pvalue": 0.392,
+          "level": "stable"
+        },
+        "PAY_AMT5": {
+          "psi": 0.0048,
+          "ks_d": 0.0186,
+          "ks_pvalue": 0.6426,
+          "level": "stable"
+        },
+        "PAY_AMT6": {
+          "psi": 0.0055,
+          "ks_d": 0.0127,
+          "ks_pvalue": 0.9596,
+          "level": "stable"
+        },
+        "AGE": {
+          "psi": 0.007,
+          "ks_d": 0.0243,
+          "ks_pvalue": 0.3083,
+          "level": "stable"
+        },
+        "score": {
+          "psi": 0.009,
+          "ks_d": 0.0244,
+          "ks_pvalue": 0.3033,
+          "level": "stable"
+        }
+      },
+      "drifted": [],
+      "share_features_drifted": 0.0,
+      "performance": {
+        "auc": 0.6821,
+        "ks": 0.2763,
+        "recall_default": 0.462,
+        "precision_default": 0.4922,
+        "approval_rate": 0.7325,
+        "auc_change": -0.0674,
+        "recall_change": -0.1189
+      },
+      "performance_alert": true,
+      "expected": {
+        "drifted": [],
+        "performance_alert": true
+      },
+      "expectation_met": true
+    },
+    "M06": {
+      "narrative": "Crise - aperto de credito (M04) e concept drift (M05) juntos",
+      "perturbations": {
+        "resample": [
+          {
+            "column": "AGE",
+            "below": 30,
+            "weight": 3.0
+          },
+          {
+            "column": "PAY_0",
+            "at_least": 2,
+            "weight": 4.0
+          }
+        ],
+        "relabel": {
+          "min_utilization": 0.5,
+          "max_pay_status": 0,
+          "probability": 0.3
+        },
+        "scale": [
+          {
+            "columns": [
+              "BILL_AMT1",
+              "BILL_AMT2",
+              "BILL_AMT3",
+              "BILL_AMT4",
+              "BILL_AMT5",
+              "BILL_AMT6"
+            ],
+            "factor": 1.25
+          },
+          {
+            "columns": [
+              "LIMIT_BAL"
+            ],
+            "factor": 0.85
+          }
+        ]
+      },
+      "status": "success",
+      "contract_warnings": {
+        "W1": 3,
+        "W3": 678
+      },
+      "alerts": [
+        {
+          "name": "psi_LIMIT_BAL",
+          "severity": "warning",
+          "action": "monitor_trend"
+        },
+        {
+          "name": "psi_PAY_0",
+          "severity": "warning",
+          "action": "monitor_trend"
+        },
+        {
+          "name": "psi_score",
+          "severity": "warning",
+          "action": "review_approval_rate"
+        },
+        {
+          "name": "psi_AGE",
+          "severity": "warning",
+          "action": "monitor_trend"
+        }
+      ],
+      "default_rate": 0.3825,
+      "columns": {
+        "LIMIT_BAL": {
+          "psi": 0.2269,
+          "ks_d": 0.1978,
+          "ks_pvalue": 0.0,
+          "level": "warning"
+        },
+        "PAY_0": {
+          "psi": 0.2131,
+          "ks_d": 0.175,
+          "ks_pvalue": 0.0,
+          "level": "warning"
+        },
+        "PAY_2": {
+          "psi": 0.0792,
+          "ks_d": 0.1048,
+          "ks_pvalue": 0.0,
+          "level": "stable"
+        },
+        "PAY_3": {
+          "psi": 0.0562,
+          "ks_d": 0.0783,
+          "ks_pvalue": 0.0,
+          "level": "stable"
+        },
+        "PAY_4": {
+          "psi": 0.063,
+          "ks_d": 0.0806,
+          "ks_pvalue": 0.0,
+          "level": "stable"
+        },
+        "PAY_5": {
+          "psi": 0.0588,
+          "ks_d": 0.0792,
+          "ks_pvalue": 0.0,
+          "level": "stable"
+        },
+        "PAY_6": {
+          "psi": 0.0591,
+          "ks_d": 0.0816,
+          "ks_pvalue": 0.0,
+          "level": "stable"
+        },
+        "BILL_AMT1": {
+          "psi": 0.0314,
+          "ks_d": 0.094,
+          "ks_pvalue": 0.0,
+          "level": "stable"
+        },
+        "BILL_AMT2": {
+          "psi": 0.0288,
+          "ks_d": 0.0926,
+          "ks_pvalue": 0.0,
+          "level": "stable"
+        },
+        "BILL_AMT3": {
+          "psi": 0.0346,
+          "ks_d": 0.1032,
+          "ks_pvalue": 0.0,
+          "level": "stable"
+        },
+        "BILL_AMT4": {
+          "psi": 0.0248,
+          "ks_d": 0.1081,
+          "ks_pvalue": 0.0,
+          "level": "stable"
+        },
+        "BILL_AMT5": {
+          "psi": 0.0558,
+          "ks_d": 0.1126,
+          "ks_pvalue": 0.0,
+          "level": "stable"
+        },
+        "BILL_AMT6": {
+          "psi": 0.0383,
+          "ks_d": 0.1206,
+          "ks_pvalue": 0.0,
+          "level": "stable"
+        },
+        "PAY_AMT1": {
+          "psi": 0.0013,
+          "ks_d": 0.0393,
+          "ks_pvalue": 0.0156,
+          "level": "stable"
+        },
+        "PAY_AMT2": {
+          "psi": 0.0027,
+          "ks_d": 0.0476,
+          "ks_pvalue": 0.0016,
+          "level": "stable"
+        },
+        "PAY_AMT3": {
+          "psi": 0.0053,
+          "ks_d": 0.0549,
+          "ks_pvalue": 0.0002,
+          "level": "stable"
+        },
+        "PAY_AMT4": {
+          "psi": 0.0045,
+          "ks_d": 0.0398,
+          "ks_pvalue": 0.0134,
+          "level": "stable"
+        },
+        "PAY_AMT5": {
+          "psi": 0.0112,
+          "ks_d": 0.0459,
+          "ks_pvalue": 0.0026,
+          "level": "stable"
+        },
+        "PAY_AMT6": {
+          "psi": 0.0087,
+          "ks_d": 0.0444,
+          "ks_pvalue": 0.004,
+          "level": "stable"
+        },
+        "AGE": {
+          "psi": 0.1927,
+          "ks_d": 0.225,
+          "ks_pvalue": 0.0,
+          "level": "warning"
+        },
+        "score": {
+          "psi": 0.1276,
+          "ks_d": 0.1515,
+          "ks_pvalue": 0.0,
+          "level": "warning"
+        }
+      },
+      "drifted": [
+        "LIMIT_BAL",
+        "PAY_0",
+        "AGE"
+      ],
+      "share_features_drifted": 0.1053,
+      "performance": {
+        "auc": 0.7286,
+        "ks": 0.3644,
+        "recall_default": 0.6383,
+        "precision_default": 0.5756,
+        "approval_rate": 0.5758,
+        "auc_change": -0.0209,
+        "recall_change": 0.0574
+      },
+      "performance_alert": false,
+      "expected": {
+        "drifted": [
+          "AGE",
+          "LIMIT_BAL",
+          "PAY_0"
+        ],
+        "performance_alert": false
+      },
+      "expectation_met": true
+    }
+  }
+}

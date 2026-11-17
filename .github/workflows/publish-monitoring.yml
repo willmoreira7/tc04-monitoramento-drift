@@ -58,6 +58,9 @@ jobs:
       - name: Preparar referencia e producao (dataset real)
         run: uv run python scripts/prepare_data.py
 
+      - name: Treinar e promover o modelo (dataset real)
+        run: uv run python scripts/train_model.py
+
       # Sem secrets ou com o MLflow fora do ar, nada e publicado -- e o job nao falha.
       - name: Verificar o ambiente compartilhado
         id: env
@@ -110,6 +113,18 @@ jobs:
           code=$?
           echo "exit code: $code"
           test "$code" -eq 2
+
+      # Lotes M01..M06 da Etapa 2: uma execucao por lote, com o relatorio do Evidently anexado.
+      - name: Publicar lotes de drift (M01..M06)
+        if: steps.env.outputs.ready == 'true'
+        env:
+          MLFLOW_TRACKING_URI: ${{ env.SHARED_MLFLOW_URI }}
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+          TC04_PUSHGATEWAY_URL: ${{ env.SHARED_PUSHGATEWAY_URL }}
+          TC04_PUSHGATEWAY_USERNAME: ${{ secrets.TC04_PUSHGATEWAY_USERNAME }}
+          TC04_PUSHGATEWAY_PASSWORD: ${{ secrets.TC04_PUSHGATEWAY_PASSWORD }}
+        run: uv run python scripts/run_drift_simulation.py
 
       - name: Resumo
         if: always()

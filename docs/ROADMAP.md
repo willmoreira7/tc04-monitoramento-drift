@@ -11,7 +11,7 @@
 |-------|-----------|------------------|--------|
 | [0 — Fundação](#-etapa-0--fundação-do-repositório) | — | — | ✅ Concluída |
 | [1 — Validação de Dados](#-etapa-1--validação-de-dados-e-contratos) | Validação de Dados e Bibliotecas de Qualidade | 25% | ✅ Concluída |
-| [2 — Drift](#-etapa-2--simulação-e-detecção-de-drift) | Data Drift | 25% | ⬜ Não iniciada |
+| [2 — Drift](#-etapa-2--simulação-e-detecção-de-drift) | Data Drift | 25% | 🟡 Em andamento |
 | [3 — Observabilidade](#-etapa-3--observabilidade-de-pipelines-e-modelos) | Monitoramento de Pipelines e Infraestrutura | 20% | 🟡 Em andamento |
 | [4 — Governança e Entrega](#%EF%B8%8F-etapa-4--governança-causalidade-e-entrega) | Privacy by Design e by Default | 15% + 15% (vídeo) | 🟡 Em andamento |
 
@@ -28,8 +28,8 @@ Conferência item a item do que o enunciado exige. **Atualizar ao fechar cada et
 | Requisito | Status | Onde |
 |-----------|--------|------|
 | Pipeline de validação de dados (data contracts) configurado | ✅ | Etapa 1 — [`src/contracts/`](../src/contracts/), relatórios em [`reports/validation/`](../reports/validation/) |
-| Scripts para simulação e detecção estatística de drift | ⬜ | Etapa 2 — `src/drift/` |
-| Dashboards ou relatórios HTML comprovando o monitoramento | 🟡 | [`reports/monitoring/dashboard.html`](../reports/monitoring/dashboard.html) com os lotes do contrato; relatórios de drift na Etapa 2 |
+| Scripts para simulação e detecção estatística de drift | ✅ | [`src/drift/`](../src/drift/) e [`scripts/run_drift_simulation.py`](../scripts/run_drift_simulation.py) |
+| Dashboards ou relatórios HTML comprovando o monitoramento | ✅ | HTML do Evidently por lote em [`reports/drift/`](../reports/drift/) e [`reports/monitoring/dashboard.html`](../reports/monitoring/dashboard.html) com o contrato e os lotes M01…M06 |
 | Documentação consolidada de Governança no README.md | 🟡 | [README — Governança](../README.md#%EF%B8%8F-governança-e-lgpd): seções 1–6 preenchidas, inclusive a auditoria de viés; falta a revisão final da Etapa 4 |
 | Histórico de commits semântico e organizado | ✅ | [COMMITLINT.md](COMMITLINT.md) — commitlint no CI em todo PR; merge por squash com mensagem semântica |
 
@@ -39,7 +39,7 @@ Conferência item a item do que o enunciado exige. **Atualizar ao fechar cada et
 |-----------|-------------|--------|
 | Scikit-Learn / XGBoost | Modelo base de risco de crédito | ✅ Dummy · LogReg · XGBoost (promovido) |
 | Great Expectations **ou** Pandera | Data contracts | ✅ Pandera — [`src/contracts/`](../src/contracts/) |
-| Evidently AI (ou Alibi Detect) | Data/Concept Drift + relatórios | ⬜ Etapa 2 |
+| Evidently AI (ou Alibi Detect) | Data/Concept Drift + relatórios | ✅ `ValueDrift` com PSI e KS por coluna — [`src/drift/detect.py`](../src/drift/detect.py) |
 | Prometheus-client | Opcional (integração com a Fase 3) | ✅ Pushgateway + Grafana da Fase 3 — [MONITORING.md](MONITORING.md#-grafana-e-prometheus-opcional) |
 
 ### Boas práticas obrigatórias
@@ -48,7 +48,7 @@ Conferência item a item do que o enunciado exige. **Atualizar ao fechar cada et
 |---------|-----------|--------|
 | Separação referência × produção | Dataset de treino distinto do de análise | ✅ Split 50/50 + testes anti-vazamento por `ID` e por conteúdo |
 | Regras rígidas de qualidade | ≥ 3 regras | ✅ 8 regras críticas (C1–C8) + 4 avisos; lote corrompido bloqueado — [DATA_CONTRACTS.md](DATA_CONTRACTS.md) |
-| Relatório estatístico de mudança de distribuição | PSI ou KS | ⬜ PSI + KS configurados explicitamente |
+| Relatório estatístico de mudança de distribuição | PSI ou KS | ✅ PSI + KS configurados explicitamente — [DRIFT.md](DRIFT.md#-resultados) |
 | Documentação de compliance | Plano de privacidade LGPD | 🟡 No README: origem e licença, inventário de dados pessoais, base legal, privacy by design, retenção e vieses; revisão final na Etapa 4 |
 
 ### Dataset
@@ -137,7 +137,7 @@ Script de validação de dados operante + modelo baseline treinado.
 
 ### ✅ Critério de aceite
 
-- [x] Lote corrompido é rejeitado e vai para quarentena · 🟡 "nenhuma predição" reforçado com teste na Etapa 2, quando a predição entrar no pipeline
+- [x] Lote corrompido é rejeitado e vai para quarentena · "nenhuma predição" provado por teste na Etapa 2 (`test_blocked_batch_never_reaches_the_model`)
 - [x] Cada regra crítica tem teste com caso válido e inválido (16 casos inválidos cobrindo C1–C8)
 - [x] Teste automatizado prova que nenhuma linha do pool de produção está no treino (por `ID` e por conteúdo)
 - [x] Modelo promovido supera o Dummy e atende ao gate declarado (AUC val. 0,7622 ≥ 0,70)
@@ -152,13 +152,13 @@ Script de validação de dados operante + modelo baseline treinado.
 
 ### Tarefas
 
-- [ ] Declarar os cenários em `configs/drift_scenarios.yaml` (ver [DRIFT.md](DRIFT.md))
-- [ ] Gerar os lotes M01…M06 a partir do pool de produção
-- [ ] Passar cada lote pelo contrato e gerar predições
-- [ ] Relatório Evidently por lote com **PSI e KS explícitos** por coluna
-- [ ] Monitorar drift de predição (distribuição do score)
-- [ ] Monitorar performance com rótulos (AUC, recall de inadimplentes) para captar concept drift
-- [ ] Confirmar que M01 (controle) **não** acusa drift
+- [x] Declarar os cenários em `configs/drift_scenarios.yaml` (ver [DRIFT.md](DRIFT.md)), calibrados no dado real (ADR 14)
+- [x] Gerar os lotes M01…M06 a partir do pool de produção
+- [x] Passar cada lote pelo contrato e gerar predições
+- [x] Relatório Evidently por lote com **PSI e KS explícitos** por coluna
+- [x] Monitorar drift de predição (distribuição do score)
+- [x] Monitorar performance com rótulos (AUC, recall de inadimplentes) para captar concept drift
+- [x] Confirmar que M01 (controle) **não** acusa drift (maior PSI: 0,011)
 - [ ] Ablação causal: cada perturbação isolada, impacto medido
 - [ ] Notebook `notebooks/03_drift_analysis.ipynb` com a leitura dos resultados
 
@@ -168,10 +168,15 @@ Relatório de drift (HTML do Evidently) apontando claramente as variáveis degra
 
 ### ✅ Critério de aceite
 
-- [ ] ≥ 2 variáveis importantes com drift detectado nos lotes perturbados
-- [ ] M01 sem drift (falso positivo = 0)
-- [ ] Concept drift (M05) detectado pela performance mesmo sem drift nas features
-- [ ] HTML de cada lote em `reports/drift/`, versionado
+- [x] ≥ 2 variáveis importantes com drift detectado nos lotes perturbados (`LIMIT_BAL` e `PAY_0` no M04 e no M06)
+- [x] M01 sem drift (falso positivo = 0)
+- [x] Concept drift (M05) detectado pela performance mesmo sem drift nas features (AUC −0,067)
+- [x] HTML de cada lote em `reports/drift/`, versionado
+- ⚠️ M06 não disparou o alerta de performance que o desenho previa: a mudança de população esconde o concept drift. Expectativa revista para o medido, hipótese original registrada, cenário não recalibrado ([DRIFT.md](DRIFT.md#-resultados))
+- [x] Teste exige que a evidência real versionada cumpra a expectativa de cada lote
+
+> 🟡 **A Etapa 2 não está encerrada.** Faltam a ablação causal, o notebook
+> `03_drift_analysis.ipynb` e a seção de Análise Causal no README (próximo PR).
 
 ---
 
@@ -188,9 +193,10 @@ Relatório de drift (HTML do Evidently) apontando claramente as variáveis degra
 - [x] Regras de alerta (atenção / crítico) avaliadas a cada lote: bloqueio, falha de estágio, volume, PSI, PSI do score, queda de AUC
 - [x] Gerador do dashboard consolidado (`reports/monitoring/dashboard.html`): status e latência por estágio, volume, memória, alertas
 - [x] Documentar as métricas de saúde escolhidas e o playbook de resposta
-- [ ] Estágios de predição, drift e performance no fluxo monitorado (dependem da Etapa 2)
+- [x] Estágios de predição, drift e performance no fluxo monitorado (lotes M01…M06)
 - [x] Dashboard versionado com os lotes de demonstração do contrato (dataset real)
-- [ ] Regenerar o dashboard e tirar os prints do MLflow com os lotes M01…M06
+- [x] Regenerar o dashboard com os lotes M01…M06
+- [ ] Tirar os prints do MLflow com os lotes M01…M06 (`docs/assets/`)
 - [x] ⚪ Opcional: métricas do lote enviadas ao Pushgateway (`TC04_PUSHGATEWAY_URL`) e dashboard do Grafana versionado em `monitoring/grafana/`
 
 ### 📦 Entregável
@@ -200,7 +206,7 @@ a estabilidade da infraestrutura e os alertas de degradação do modelo.
 
 ### ✅ Critério de aceite
 
-- [ ] Dashboard mostra, por lote: status de cada estágio, volume, latência, alertas de drift e performance
+- [x] Dashboard mostra, por lote: status de cada estágio, volume, latência, alertas de drift e performance
 - [x] O lote corrompido aparece no dashboard como bloqueado na validação (exit 2), não como sucesso
 - [x] `uv run mlflow ui` lista as execuções com métricas e artefatos
 
@@ -249,4 +255,4 @@ Documentação completa de Governança e Causalidade no README + link do vídeo.
 
 ---
 
-**Última atualização:** 2026-11-16
+**Última atualização:** 2026-11-17

@@ -5,11 +5,13 @@
 > que custou nota no TC02). Critério de aceite: `git ls-files docs/MODEL_CARD.md`.
 
 > 🟡 **Estado:** performance, comparação, ablação e auditoria de viés preenchidas na
-> Etapa 1 com números medidos. Pendente: comportamento sob drift (Etapa 2).
+> Etapa 1, e comportamento sob drift na Etapa 2, todos com números medidos. Pendente: a
+> leitura causal por intervenção isolada (fechamento da Etapa 2).
 >
 > Fontes, todas versionadas:
 > - [`reports/model/model_comparison.json`](../reports/model/model_comparison.json), gerado por `uv run python scripts/train_model.py`.
 > - [`reports/model/ablation.json`](../reports/model/ablation.json) e [`reports/model/fairness_audit.json`](../reports/model/fairness_audit.json), gerados por `uv run python scripts/audit_model.py`.
+> - [`reports/drift/drift_summary.json`](../reports/drift/drift_summary.json), gerado por `uv run python scripts/run_drift_simulation.py`.
 
 ---
 
@@ -175,11 +177,32 @@ referência para as razões.
 
 ## 📉 Comportamento sob Drift
 
-> 🟡 Preenchido na Etapa 2 — performance por lote (M01…M06) e leitura causal.
+Lotes simulados de 2.400 linhas do pool de produção, comparados com a janela de
+referência (validação + teste, 4.495 linhas), no limiar do modelo (0,2556). Fonte:
+[`reports/drift/drift_summary.json`](../reports/drift/drift_summary.json). **O drift é
+simulado** e os rótulos são revelados no próprio lote.
 
-| Lote | AUC-ROC | Recall | PSI do score | Alertas |
-|------|---------|--------|--------------|---------|
-| 🟡 | | | | |
+| Lote | Cenário | AUC-ROC | Recall | Aprovação | PSI do score | Alertas |
+|------|---------|---------|--------|-----------|--------------|---------|
+| Referência | — | 0,7495 | 0,581 | 0,724 | — | — |
+| M01 | Controle | 0,7496 | 0,585 | 0,733 | 0,009 | nenhum |
+| M02 | Faturas +10% | 0,7489 | 0,583 | 0,730 | 0,006 | nenhum |
+| M03 | Mais jovens, faturas +25% | 0,7654 | 0,622 | 0,714 | 0,011 | atenção (`AGE`) |
+| M04 | Aperto de crédito | 0,7930 | 0,742 | 0,576 | 0,128 | atenção (3 colunas e score) |
+| M05 | Concept drift | 0,6821 | 0,462 | 0,733 | 0,009 | **crítico (AUC e recall)** |
+| M06 | Crise (M04 + M05) | 0,7286 | 0,638 | 0,576 | 0,128 | atenção (3 colunas e score) |
+
+**O que isso diz sobre o modelo:**
+
+- **Robusto à inflação nominal.** Faturas 10% maiores mudam a AUC em 0,0007: o modelo se
+  apoia em `PAY_0`, não no valor da fatura.
+- **Mudança de carteira muda a decisão, não a qualidade.** No aperto de crédito a aprovação
+  cai de 0,724 para 0,576 e a AUC sobe: mais atrasados, mais fáceis de ordenar.
+- **Cego ao concept drift até o rótulo chegar.** No M05 nem as features nem o score mudam e
+  a AUC cai 0,067. Em produção, isso só aparece meses depois.
+- **Na crise, a queda fica escondida no agregado.** O M06 perde 0,064 de AUC contra a mesma
+  carteira sem o concept drift (M04), mas só 0,021 contra a referência: nenhum alerta de
+  performance. Ver [DRIFT.md](DRIFT.md#-resultados).
 
 ---
 

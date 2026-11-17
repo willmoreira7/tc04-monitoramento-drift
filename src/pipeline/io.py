@@ -10,6 +10,11 @@ METADATA_FILE = "split_metadata.json"
 SYNTHETIC_SUFFIX = ".synthetic"
 
 
+def json_text(payload: dict[str, Any]) -> str:
+    """Texto exato que ``write_json`` grava (para comparar com um arquivo existente)."""
+    return json.dumps(payload, indent=2) + "\n"
+
+
 def write_json(path: Path, payload: dict[str, Any]) -> None:
     """Grava JSON indentado, UTF-8 e com fim de linha LF (inclusive no Windows).
 
@@ -17,7 +22,7 @@ def write_json(path: Path, payload: dict[str, Any]) -> None:
     modificado em toda execucao, mesmo com o conteudo identico.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8", newline="\n")
+    path.write_text(json_text(payload), encoding="utf-8", newline="\n")
 
 
 def read_prepared(path: Path) -> pd.DataFrame:

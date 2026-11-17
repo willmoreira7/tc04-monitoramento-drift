@@ -1,12 +1,14 @@
 """Execucao monitorada de um lote: estagios medidos, alertas avaliados, run no MLflow.
 
-E o ponto em que o pipeline encontra a observabilidade. Hoje cobre ingestao e validacao
-do lote de demonstracao; predicao, drift e performance entram como novos blocos
-``recorder.stage(...)`` quando a Etapa 2 existir, sem mudar o restante.
+E o ponto em que o pipeline encontra a observabilidade. Todo lote passa por ingestao e
+validacao; os estagios seguintes (predicao, drift e performance, da Etapa 2) entram como
+``downstream``, so para lotes aprovados no contrato -- lote bloqueado nunca chega ao modelo.
 """
 
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from functools import partial
 from pathlib import Path
 
 import structlog
@@ -22,11 +24,16 @@ from src.pipeline.io import report_name
 from src.pipeline.validate import (
     VALIDATION_REPORT_DIR,
     DemoBatch,
+    IngestedBatch,
     ingest_demo_batch,
     validate_stage,
 )
 
 logger = get_logger(__name__)
+
+# Estagios depois da validacao: recebem o recorder e o lote aprovado; devolvem metricas e
+# artefatos (por subpasta do MLflow) a registrar na execucao.
+Downstream = Callable[[BatchRecorder, IngestedBatch], tuple[dict[str, float], dict[str, Path]]]
 
 
 @dataclass
@@ -38,6 +45,7 @@ class BatchOutcome:
         status: ``success``, ``failed`` ou ``blocked``.
         source: ``real``, ``synthetic`` ou ``unknown`` (ingestao falhou antes de saber).
         alerts: Alertas disparados.
+        metrics: Metricas registradas no MLflow.
         mlflow_run_id: Execucao registrada no MLflow.
     """
 
@@ -45,6 +53,7 @@ class BatchOutcome:
     status: str
     source: str = SOURCE_UNKNOWN
     alerts: list[Alert] = field(default_factory=list)
+    metrics: dict[str, float] = field(default_factory=dict)
     mlflow_run_id: str = ""
 
 
@@ -57,11 +66,7 @@ def run_monitored_demo(
     report_dir: Path = VALIDATION_REPORT_DIR,
     log_file: Path = PIPELINE_LOG,
 ) -> BatchOutcome:
-    """Roda o lote de demonstracao pelos estagios e registra a execucao no MLflow.
-
-    Nenhuma excecao escapa: lote bloqueado e falha inesperada viram ``status`` no
-    resultado, com a execucao registrada -- e o que faz o lote corrompido e a falha de
-    ingestao aparecerem no dashboard em vez de sumirem.
+    """Roda o lote de demonstracao do contrato (sem estagios de modelo).
 
     Args:
         kind: Lote valido ou corrompido.
@@ -75,18 +80,51 @@ def run_monitored_demo(
     Returns:
         Status, alertas e id da execucao no MLflow.
     """
-    batch_id = f"demo_{kind}"
+    ingest = partial(ingest_demo_batch, kind, reference_dir, production_dir)
+    return run_monitored_batch(
+        f"demo_{kind}", scenario, ingest, None, quarantine_dir, report_dir, log_file
+    )
+
+
+def run_monitored_batch(
+    batch_id: str,
+    scenario: str,
+    ingest: Callable[[], IngestedBatch],
+    downstream: Downstream | None = None,
+    quarantine_dir: Path = QUARANTINE_DIR,
+    report_dir: Path = VALIDATION_REPORT_DIR,
+    log_file: Path = PIPELINE_LOG,
+) -> BatchOutcome:
+    """Roda um lote pelos estagios e registra a execucao no MLflow (e no Pushgateway).
+
+    Nenhuma excecao escapa: lote bloqueado e falha inesperada viram ``status`` no
+    resultado, com a execucao registrada -- e o que faz o lote corrompido e a falha de
+    ingestao aparecerem no dashboard em vez de sumirem.
+
+    Args:
+        batch_id: Identificador do lote.
+        scenario: Rotulo do cenario, gravado como tag da execucao.
+        ingest: Estagio de ingestao: devolve o lote e o que a validacao precisa.
+        downstream: Estagios depois da validacao; ``None`` para so validar.
+        quarantine_dir: Raiz da quarentena.
+        report_dir: Destino do relatorio de validacao.
+        log_file: Log centralizado de onde os eventos da execucao sao lidos.
+
+    Returns:
+        Status, alertas, metricas e id da execucao no MLflow.
+    """
     pipeline_run_id = uuid.uuid4().hex
     outcome = BatchOutcome(batch_id, STATUS_FAILED)
     recorder = BatchRecorder(batch_id)
     extra_metrics: dict[str, float] = {}
+    artifacts: dict[str, Path] = {}
     error_type = None
     with structlog.contextvars.bound_contextvars(
         batch_id=batch_id, pipeline_run_id=pipeline_run_id
     ):
         try:
             with recorder.stage("ingestion") as stage:
-                ingested = ingest_demo_batch(kind, reference_dir, production_dir)
+                ingested = ingest()
                 stage.rows_in = stage.rows_out = len(ingested.batch)
             outcome.source = ingested.source
             extra_metrics["rows_expected"] = float(ingested.expected_rows)
@@ -102,6 +140,9 @@ def run_monitored_demo(
                 )
                 stage.rows_out = result.rows
             extra_metrics |= _contract_metrics(result)
+            if downstream is not None:
+                model_metrics, artifacts = downstream(recorder, ingested)
+                extra_metrics |= model_metrics
         except ContractViolationError as error:
             error_type = type(error).__name__
             extra_metrics |= _contract_metrics(error.result)
@@ -109,27 +150,26 @@ def run_monitored_demo(
             error_type = type(error).__name__
             logger.exception("pipeline_failed", error_type=error_type)
         outcome.status = recorder.status
-        metrics = recorder.metrics() | extra_metrics
-        outcome.alerts = evaluate_alerts(metrics, outcome.status)
+        outcome.metrics = recorder.metrics() | extra_metrics
+        outcome.alerts = evaluate_alerts(outcome.metrics, outcome.status)
         for alert in outcome.alerts:
             log = logger.critical if alert["severity"] == SEVERITY_CRITICAL else logger.warning
             log("alert", **alert)
         logger.info(
             "pipeline_finished",
             status=outcome.status,
-            duration_s=round(metrics["pipeline_duration_s"], 3),
+            duration_s=round(outcome.metrics["pipeline_duration_s"], 3),
             alerts=len(outcome.alerts),
         )
+    validation_report = report_dir / report_name(f"{batch_id}.json", outcome.source)
     outcome.mlflow_run_id = log_batch_run(
         batch_id,
         scenario=scenario,
         status=outcome.status,
         source=outcome.source,
-        metrics=metrics,
+        metrics=outcome.metrics,
         alerts=outcome.alerts,
-        artifacts={
-            "validation": report_dir / report_name(f"{batch_id}.json", outcome.source),
-        },
+        artifacts={"validation": validation_report, **artifacts},
         events=read_run_events(pipeline_run_id, log_file),
         error_type=error_type,
     )
@@ -138,7 +178,7 @@ def run_monitored_demo(
         scenario=scenario,
         status=outcome.status,
         source=outcome.source,
-        metrics=metrics,
+        metrics=outcome.metrics,
         alerts=outcome.alerts,
     )
     return outcome

@@ -63,7 +63,27 @@ pelas mesmas funções no notebook, no script e no CI. ✅ Aceita (Etapa 1).
 **Decisão: Evidently AI, com `stattest` configurado por coluna.** É a biblioteca indicada
 no enunciado e gera o HTML exigido. O padrão dela para amostras > 1.000 é
 Wasserstein/Jensen-Shannon; o enunciado pede PSI/KS, então a configuração é explícita. PSI
-decide o alerta, KS confirma (ver [DRIFT.md](DRIFT.md#-testes-estatísticos)). 🟡 Proposta.
+decide o alerta, KS confirma (ver [DRIFT.md](DRIFT.md#-testes-estatísticos)). ✅ Aceita
+na Etapa 2: cada coluna recebe `ValueDrift(method="psi")` e `ValueDrift(method="ks")`
+([`src/drift/detect.py`](../src/drift/detect.py)).
+
+**Como ficou, com o que foi medido:**
+
+- **Uma só implementação de PSI: a do Evidently.** Ela divide os dados em faixas de largura
+  igual (regra de Sturges) sobre referência e lote juntos, e não em decis da referência,
+  que é o padrão de mercado. Em colunas monetárias de cauda longa isso a deixa um pouco
+  menos sensível: no lote com aperto de crédito, o PSI de `LIMIT_BAL` deu 0,18 contra 0,27
+  pelos decis (sondagem antes da implementação). Manter uma segunda implementação só para
+  ganhar sensibilidade violaria a regra de uma função de PSI no projeto, e o M01 mostrou
+  que a do Evidently não gera falso positivo (maior PSI no controle: 0,011).
+- **KS: o Evidently devolve só o p-valor.** A estatística D é calculada com
+  `scipy.stats.ks_2samp` e registrada junto. No M02 (inflação de 10%), o KS rejeita H₀ em
+  todas as `BILL_AMT*` (p < 0,02) com D entre 0,039 e 0,052 e PSI de no máximo 0,016:
+  diferença real, irrelevante na prática. É por isso que o KS confirma e não decide.
+
+**Descartado:** `DriftedColumnsCount` e os presets. A contagem de colunas com drift vem do
+adaptador da Etapa 3 (`build_model_metrics`), com o limiar de `configs/pipeline.yaml`; ter
+o Evidently contando de novo seria um segundo critério.
 
 > ⚠️ A API do Evidently mudou de forma incompatível entre versões recentes (presets,
 > imports, formato do snapshot). A versão fica travada no `uv.lock` e anotada no
@@ -177,13 +197,68 @@ na própria decisão, e nenhum grupo ficou abaixo da regra dos 4/5.
 
 ---
 
+## 🎲 Decisão 14 — Desenho da simulação de drift
+
+**Contexto.** A especificação da Etapa 0 ([DRIFT.md](DRIFT.md)) previa seis lotes mensais
+retirados do pool sem reposição, intensidades "a calibrar depois do baseline" e drift de
+perfil por `AGE`. Três coisas mudaram com a medição no dado real.
+
+**1. Mesmo sorteio em todos os lotes (números aleatórios comuns).** Cada lote é uma
+amostra de 2.400 linhas do pool com a **mesma seed**; só os pesos e as perturbações do
+cenário mudam. A primeira versão usava uma seed por lote e o M02 (só inflação) acusou
+queda de AUC de 0,04, alerta de atenção sem nenhuma causa. Medido em 100 lotes uniformes
+de 2.400 linhas: a AUC varia com desvio-padrão de 0,012, e 1% dos lotes passa do limiar de
+atenção (0,03) por puro acaso. A amostra do M02 era desse 1%. Trocar a seed até o resultado
+agradar seria escolher pelo resultado; com o mesmo sorteio, a diferença entre dois lotes
+é causada **só** pelo que o cenário declara, que é o que a análise causal precisa. O M01
+continua medindo o ruído que resta.
+
+- **Custo:** M01, M02 e M05 contêm os mesmos clientes, o que não é realista como série
+  mensal. Fica declarado; o objetivo é atribuir causa, não imitar uma carteira real.
+- **Sem reposição dentro do lote; com sobreposição entre lotes.** O pool tem 14.983
+  linhas e seis lotes somam 14.400: amostrar sem reposição entre lotes esgotaria os perfis
+  favorecidos pela reamostragem antes do M06. O pool continua sem nunca tocar o treino.
+
+**2. Janela de referência = validação + teste (4.495 linhas), não o treino.** O XGBoost
+vê o treino e dá a ele scores otimistas: o PSI do score e a AUC de base só valem fora da
+amostra. As features usam a mesma janela, para tudo ser comparado contra a mesma população.
+AUC de base na janela: 0,7495.
+
+**3. Drift nas features que o modelo usa.** Pela importância por permutação na validação,
+`PAY_0` domina (0,094 de AUC), seguido de `BILL_AMT1`, `PAY_AMT1` e `LIMIT_BAL`. A idade
+saiu do modelo (ADR 13), então o drift exigido pelo enunciado ("variáveis importantes") é
+em `LIMIT_BAL` e `PAY_0`. A idade continua monitorada como atributo de população: mostra a
+mudança de perfil, mas não entra na fração de features com drift.
+
+**Calibração (antes de fixar os cenários, com o mesmo método de medição):**
+
+- Peso 3 para `PAY_0 ≥ 2` deixa o PSI de `PAY_0` entre 0,09 e 0,14 em 40 sorteios, na
+  fronteira da atenção; peso 4 dá entre 0,15 e 0,22. Ficou 4.
+- Inflação de 10–25% nas faturas não chega a PSI 0,10. **Mantida**, em vez de exagerada
+  até disparar: inflação plausível produz drift que o PSI corretamente considera pequeno, e
+  o modelo quase não sente (AUC 0,7489 contra 0,7496 no controle).
+
+**Resultado** ([`reports/drift/drift_summary.json`](../reports/drift/drift_summary.json)):
+cinco dos seis lotes fizeram o que o desenho previa. O M06 (crise: aperto de crédito e
+concept drift juntos) **não** disparou o alerta de performance previsto: a AUC agregada caiu
+só 0,021. Não foi recalibrado para forçar o alerta; a expectativa do YAML foi revista para o
+comportamento medido, com a hipótese original registrada no comentário, e o teste
+`test_versioned_evidence_meets_every_declared_expectation` exige que a evidência versionada
+cumpra todas as expectativas. A carteira da crise tem o dobro de atrasados, que o modelo ordena com
+facilidade, e isso esconde a degradação causada pelo concept drift. Contra a mesma carteira
+sem o concept drift (M04, AUC 0,793), a perda é de 0,064. É a principal lição da Etapa 2:
+comparar a performance contra a linha de base agregada falha quando a população muda (ver
+[DRIFT.md](DRIFT.md#-resultados)). ✅ Aceita.
+
+---
+
 ## 📌 Registro de Decisões (ADR resumido)
 
 | # | Decisão | Status | Motivo principal |
 |---|---------|--------|------------------|
 | 01 | Pipeline em lote mensal | 🟡 Proposta | Monitoramento de carteira é por janela; reproduzível com um comando |
 | 02 | Pandera para contratos; relatório JSON agregado | ✅ Aceita | Contrato como código, testável com pytest, dependência leve; JSON determinístico alimenta o dashboard |
-| 03 | Evidently com PSI (decisão) + KS (confirmação) explícitos | 🟡 Proposta | Exigência do enunciado; padrão do Evidently não é PSI/KS |
+| 03 | Evidently com PSI (decisão) + KS (confirmação) explícitos | ✅ Aceita | Exigência do enunciado; padrão do Evidently não é PSI/KS. PSI só do Evidently (faixas de largura igual, documentado); D do KS pelo scipy |
 | 04 | Comparação enxuta: Dummy · LogReg · XGBoost padrão, sem busca de hiperparâmetros | ✅ Aceita | Modelo é o objeto monitorado, não critério de nota; escolha por evidência mínima e argumento de explicabilidade (LGPD art. 20) |
 | 05 | MLflow + dashboard HTML versionado | 🟡 Proposta | Etapa 3 sem infraestrutura; evidência visível sem rodar |
 | 06 | Lote inválido bloqueado por inteiro | ✅ Aceita | Não mascarar falha de origem nem distorcer o drift |
@@ -194,6 +269,7 @@ na própria decisão, e nenhum grupo ficou abaixo da regra dos 4/5.
 | 11 | Contrato valida colunas brutas; features derivadas depois | ✅ Aceita | Regras de origem (códigos fora do dicionário) só são visíveis no dado bruto |
 | 12 | Termos de uso verificados antes de adotar qualquer dataset; Home Credit descartado | ✅ Aceita | As regras da competição limitam o uso "only for the purposes of the Competition" e proíbem manipular os dados. Ver [README — Origem dos dados](../README.md#1-origem-dos-dados-e-termos-de-uso) e [DATASET.md](DATASET.md#-por-que-não-o-home-credit) |
 | 13 | `AGE` e `EDUCATION` fora das features, por ablação | ✅ Aceita | Sem eles a AUC val. não cai (0,7602 → 0,7622); minimização (art. 6º, III). No teste caiu 0,011, documentado. A remoção não eliminou a diferença por escolaridade, então a auditoria mede o resultado |
+| 14 | Simulação com mesmo sorteio em todos os lotes; referência = validação + teste; drift em `LIMIT_BAL` e `PAY_0` | ✅ Aceita | Com seeds independentes, o ruído (sd 0,012 na AUC) gerou alerta sem causa no M02. Score do treino é otimista. Idade saiu do modelo. M06 não atendeu à expectativa e não foi recalibrado: a mudança de população mascara o concept drift |
 
 ---
 

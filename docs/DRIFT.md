@@ -4,7 +4,14 @@
 > Implementação na Etapa 2, em `src/drift/`. Cenários declarados em
 > `configs/drift_scenarios.yaml`.
 
-> 🟡 **Status: especificação.** Intensidades a calibrar depois do baseline.
+> ✅ **Status: implementado (Etapa 2).** Intensidades calibradas no dado real e
+> resultados em [Resultados](#-resultados). Decisões de desenho no
+> [ADR 14](ARQUITETURA.md#-decisão-14--desenho-da-simulação-de-drift). A análise causal por
+> intervenção isolada fica para o fechamento da etapa.
+>
+> ⚠️ **O drift é simulado.** Os lotes saem do pool de produção do próprio dataset, com
+> perturbações declaradas. Os rótulos de cada lote são revelados no próprio lote, o que
+> encurta o atraso real de meses entre a decisão de crédito e a inadimplência.
 
 ---
 
@@ -26,24 +33,28 @@ mecanismos com efeitos diferentes no modelo. Este projeto separa três:
 
 ## 🗓️ Lotes
 
-Seis lotes mensais de 2.400 linhas, retirados do pool de produção sem reposição.
+Seis lotes mensais de 2.400 linhas do pool de produção, sem reposição dentro do lote e com
+o **mesmo sorteio** em todos (ADR 14): a diferença entre dois lotes vem só do que o
+cenário declara. Cenários em
+[`configs/drift_scenarios.yaml`](../configs/drift_scenarios.yaml), aplicados nesta ordem:
+reamostragem → reetiquetagem → escala.
 
 | Lote | Narrativa | Perturbação | Esperado |
 |------|----------|-------------|----------|
-| **M01** | Mês normal | Nenhuma | **Sem drift.** Mede a taxa de falso positivo do detector |
-| **M02** | Inflação começa | `BILL_AMT*` × 1,10 | Drift leve em `BILL_AMT*` (atenção) |
-| **M03** | Novos perfis + inflação | Reamostragem: mais `AGE` < 30 · `BILL_AMT*` × 1,25 | Drift moderado/crítico em `AGE` e `BILL_AMT*` |
-| **M04** | Aperto de crédito | M03 + mais `PAY_0` ≥ 2 · `LIMIT_BAL` × 0,85 | Drift crítico em várias features e no score |
-| **M05** | Concept drift puro | Features como M01; P(default) ↑ para alta utilização | **Sem drift de features**, queda de AUC/recall |
-| **M06** | Crise | M04 + reetiquetagem de M05 | Tudo dispara |
+| **M01** | Mês normal | Nenhuma | **Sem drift.** Mede o falso positivo do detector |
+| **M02** | Inflação começa | `BILL_AMT*` × 1,10 | Sem alerta: o KS acusa pelo n grande, o PSI não |
+| **M03** | Novos perfis + inflação | Peso 3 para `AGE` < 30 · `BILL_AMT*` × 1,25 | Atenção em `AGE` |
+| **M04** | Aperto de crédito | M03 + peso 4 para `PAY_0` ≥ 2 · `LIMIT_BAL` × 0,85 | Drift em `AGE`, `LIMIT_BAL` e `PAY_0`, **sem** alerta de performance |
+| **M05** | Concept drift puro | Features como M01; bons pagadores em dia com utilização ≥ 0,5 inadimplem com chance de 30% | **Sem drift de features**, queda de AUC/recall |
+| **M06** | Crise | M04 + reetiquetagem de M05 | Drift de features; **sem** alerta de performance — a hipótese do desenho era o alerta, ver [Resultados](#-resultados) |
 
-Mais um **lote corrompido** (ver [DATA_CONTRACTS.md](DATA_CONTRACTS.md)), que deve ser
-barrado antes de chegar aqui.
+Mais um **lote corrompido** (ver [DATA_CONTRACTS.md](DATA_CONTRACTS.md)), barrado antes
+de chegar aqui.
 
-> ℹ️ As features escolhidas são **importantes para o modelo** — exigência do enunciado. A
-> lista final sai do ranking de importância do baseline (Etapa 1). Se `AGE` ficar fora
-> das features por decisão de viés, o drift de perfil é deslocado para outra feature
-> relevante.
+> ℹ️ As features com drift são **importantes para o modelo** — exigência do enunciado.
+> Pela importância por permutação na validação: `PAY_0` 0,094 de AUC (1º), `BILL_AMT1`
+> 0,031 (2º), `LIMIT_BAL` 0,016 (6º). A idade saiu do modelo (ADR 13) e é monitorada como
+> atributo de população, fora da fração de features com drift.
 
 ---
 
@@ -73,7 +84,19 @@ diferenças **sem relevância prática**. Usar só `p < 0,05` geraria alerta em 
   calculada pelo projeto com `scipy.stats.ks_2samp` e registrada junto
 - o lote M01 serve de calibração: se o KS dispara em M01, o limiar está errado
 
-### Limiares propostos
+> ℹ️ **Como o Evidently calcula o PSI.** Faixas de largura igual (regra de Sturges) sobre
+> referência e lote juntos, não decis da referência. Em colunas monetárias de cauda longa
+> isso o deixa um pouco menos sensível. Ficou assim para haver uma única implementação de
+> PSI no projeto; o motivo e a medida estão no
+> [ADR 03](ARQUITETURA.md#-decisão-3--evidently-com-psi-e-ks-explícitos).
+
+### Janela de referência
+
+Validação + teste da referência (4.495 linhas), não o treino: o modelo já viu o treino e
+dá a ele scores otimistas. AUC de base na janela: **0,7495**; recall de inadimplentes
+0,581; taxa de aprovação 0,724.
+
+### Limiares
 
 | Sinal | Atenção | Crítico |
 |-------|---------|---------|
@@ -84,7 +107,55 @@ diferenças **sem relevância prática**. Usar só `p < 0,05` geraria alerta em 
 | Queda de recall de inadimplentes | ≥ 0,05 | ≥ 0,10 |
 
 Faixas de PSI seguem a convenção de mercado (< 0,10 estável; 0,10–0,25 mudança moderada;
-> 0,25 mudança significativa). Os limiares vivem em `configs/pipeline.yaml`.
+> 0,25 mudança significativa). Os limiares vivem em `configs/pipeline.yaml`
+(`monitoring.thresholds`), o mesmo lugar que os alertas da Etapa 3 leem. A fração de
+features conta só as 19 features do modelo.
+
+---
+
+## 📊 Resultados
+
+Dataset real, gerado por `uv run python scripts/run_drift_simulation.py`. Fonte:
+[`reports/drift/drift_summary.json`](../reports/drift/drift_summary.json) (relatório HTML do
+Evidently de cada lote em [`reports/drift/`](../reports/drift/)).
+
+| Lote | Colunas com PSI ≥ 0,10 | PSI do score | AUC | Recall | Aprovação | Alertas | Como esperado? |
+|------|------------------------|--------------|-----|--------|-----------|---------|----------------|
+| Referência | — | — | 0,7495 | 0,581 | 0,724 | — | — |
+| **M01** | nenhuma (maior: 0,011) | 0,009 | 0,7496 | 0,585 | 0,733 | nenhum | ✅ |
+| **M02** | nenhuma (maior: 0,016) | 0,006 | 0,7489 | 0,583 | 0,730 | nenhum | ✅ |
+| **M03** | `AGE` 0,152 | 0,011 | 0,7654 | 0,622 | 0,714 | atenção: `AGE` | ✅ |
+| **M04** | `LIMIT_BAL` 0,227 · `PAY_0` 0,213 · `AGE` 0,193 | 0,128 | 0,7930 | 0,742 | 0,576 | atenção: 3 colunas e score | ✅ |
+| **M05** | nenhuma (maior: 0,011) | 0,009 | 0,6821 | 0,462 | 0,733 | **crítico: AUC e recall** | ✅ |
+| **M06** | `LIMIT_BAL` 0,227 · `PAY_0` 0,213 · `AGE` 0,193 | 0,128 | 0,7286 | 0,638 | 0,576 | atenção: 3 colunas e score | ⚠️ hipótese do desenho (alerta de performance) não confirmada; expectativa revista |
+
+**O que os números dizem:**
+
+1. **O detector não gera falso positivo.** No M01 o maior PSI é 0,011 e a AUC é igual à
+   da referência (0,7496 × 0,7495).
+2. **KS acusa, PSI pesa.** No M02 o KS rejeita H₀ em todas as `BILL_AMT*` (p < 0,02), com D
+   entre 0,039 e 0,052 e PSI de no máximo 0,016. A inflação é real e o modelo quase não sente (AUC
+   0,7489). Alertar aqui seria ruído.
+3. **Drift não é degradação.** No M04 três colunas e o score mudam, a taxa de aprovação cai
+   de 0,724 para 0,576 — e a AUC **sobe** para 0,793, porque a carteira tem mais atrasados,
+   que o modelo ordena com facilidade. O alerta certo é de negócio (aprovação), não de
+   retreino. O contrato também avisou: W3 (atrasos acima de 1,5× a referência) em 678 linhas.
+4. **Degradação silenciosa.** No M05 nenhuma feature e nem o score mudam (PSI ≤ 0,011), e a
+   AUC cai 0,067, o recall 0,119. Só a performance com rótulo enxerga — meses depois.
+5. **A mudança de população esconde o concept drift.** No M06 o concept drift do M05
+   acontece numa carteira como a do M04. Contra a referência, a AUC cai só 0,021 e o recall
+   **sobe**: nenhum alerta de performance. Contra a mesma carteira sem o concept drift
+   (M04), a perda é de 0,064 de AUC e 0,104 de recall. O desenho previa alerta de
+   performance aqui; a medição mostrou que não há, e o cenário **não foi recalibrado** para
+   forçá-lo. A expectativa no YAML foi revista para o comportamento medido, com a hipótese
+   original registrada ao lado, e um teste exige que a evidência versionada cumpra todas as
+   expectativas. Comparar a performance com a linha de base agregada falha justamente na
+   crise; a correção — comparar com a performance esperada para a carteira atual — entra
+   na análise causal.
+
+> ℹ️ Com uma seed por lote, a primeira versão acusou queda de AUC no M02 por ruído de
+> amostragem (desvio-padrão de 0,012 em 2.400 linhas). Daí o mesmo sorteio em todos os
+> lotes — ver [ADR 14](ARQUITETURA.md#-decisão-14--desenho-da-simulação-de-drift).
 
 ---
 
@@ -132,11 +203,17 @@ inflação ou revisar a política) — vai para a seção de Análise Causal do 
 
 | Artefato | Onde |
 |----------|------|
-| Cenários | `configs/drift_scenarios.yaml` |
-| Simulação e detecção | `src/drift/` |
-| Relatório Evidently por lote | `reports/drift/<batch_id>.html` (versionado) |
-| Análise | `notebooks/03_drift_analysis.ipynb` |
+| Cenários | [`configs/drift_scenarios.yaml`](../configs/drift_scenarios.yaml) |
+| Simulação e detecção | [`src/drift/`](../src/drift/), orquestração em [`src/pipeline/drift.py`](../src/pipeline/drift.py) |
+| Resumo de todos os lotes (conferido byte a byte pelo CI) | [`reports/drift/drift_summary.json`](../reports/drift/drift_summary.json) |
+| Relatório Evidently por lote (~5 MB cada; muda a cada execução) | `reports/drift/M01.html` … `M06.html` (versionados) |
+| Contrato de cada lote | `reports/validation/M01.json` … `M06.json` |
+| Execução por lote, com o HTML anexado | MLflow (`tc04-credit-scoring-monitoring`) |
+| Análise | `notebooks/03_drift_analysis.ipynb` — fechamento da etapa |
+
+> ℹ️ O GitHub mostra o código do HTML, não o relatório: baixe o arquivo e abra no
+> navegador, ou abra a execução do lote no MLflow (aba *Artifacts → drift_report*).
 
 ---
 
-**Última atualização:** 2026-11-07
+**Última atualização:** 2026-11-17

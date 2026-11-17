@@ -3,8 +3,10 @@
 > Métricas de saúde do pipeline, da infraestrutura e do modelo; regras de alerta e
 > playbook de resposta. Implementação na Etapa 3, em `src/monitoring/`.
 
-> 🟡 **Status: implementada para ingestão e validação.** Predição, drift e performance entram
-> no mesmo fluxo quando a Etapa 2 existir; as regras de alerta deles já estão implementadas e testadas.
+> ✅ **Status: implementada para os cinco estágios.** Os lotes M01…M06 da Etapa 2 passam
+> por ingestão, validação, predição, drift e performance
+> ([`src/pipeline/drift.py`](../src/pipeline/drift.py)); os da demonstração do contrato, só
+> pelos dois primeiros. Falta versionar os prints do MLflow.
 
 ---
 
@@ -207,7 +209,15 @@ uv run python scripts/run_monitoring_demo.py --demo valid
   artefatos num volume de 10 GiB, uma réplica, login básico do próprio MLflow, mesmo ALB
   do Grafana. É ambiente de demonstração: sem alta disponibilidade nem backup.
 - Servidor 3.16.0 e cliente 3.18.0 (travado no `uv.lock`): testado com os lotes de
-  demonstração.
+  demonstração e com os lotes M01…M06.
+- **Capacidade:** cada publicação anexa o HTML do Evidently de M01…M06, cerca de 30 MB.
+  O volume de 10 GiB comporta umas 300 publicações; o workflow roda a cada merge na `main`
+  (e em PRs que alteram o próprio workflow), algo como 20 até a entrega. O anexo fica, porque
+  é ele que deixa abrir o relatório de cada lote no próprio MLflow, sem baixar nada. Se o
+  volume encher: apagar execuções antigas na interface e rodar
+  `mlflow gc --backend-store-uri sqlite:////mlflow/data/mlflow.db --artifacts-destination
+  /mlflow/data/mlartifacts` dentro do pod (caminhos do `mlflow-values.yaml`), que remove os
+  artefatos das execuções apagadas.
 
 ---
 

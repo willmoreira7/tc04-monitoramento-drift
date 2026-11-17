@@ -19,9 +19,10 @@ REPORTS_DIR = PROJECT_ROOT / "reports"
 LOGS_DIR = PROJECT_ROOT / "logs"
 
 PIPELINE_CONFIG = CONFIGS_DIR / "pipeline.yaml"
+DRIFT_SCENARIOS_CONFIG = CONFIGS_DIR / "drift_scenarios.yaml"
 
 
-@lru_cache(maxsize=1)
+@lru_cache(maxsize=2)
 def load_config(path: Path = PIPELINE_CONFIG) -> dict[str, Any]:
     """Carrega o YAML de configuracao do pipeline.
 
@@ -33,6 +34,11 @@ def load_config(path: Path = PIPELINE_CONFIG) -> dict[str, Any]:
     """
     with path.open(encoding="utf-8") as handle:
         return yaml.safe_load(handle)
+
+
+def load_scenarios() -> dict[str, Any]:
+    """Cenarios de drift declarados em ``configs/drift_scenarios.yaml``."""
+    return load_config(DRIFT_SCENARIOS_CONFIG)["batches"]
 
 
 def get_seed() -> int:

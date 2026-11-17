@@ -96,6 +96,7 @@ uv run python scripts/validate_batch.py --demo corrupted  # lote corrompido bloq
 uv run python scripts/run_monitoring_demo.py --demo valid      # lote monitorado + run MLflow (exit 0)
 uv run python scripts/run_monitoring_demo.py --demo corrupted  # idem, bloqueado (exit 2)
 uv run python scripts/build_monitoring_dashboard.py    # dashboard HTML (--source synthetic)
+uv run python scripts/run_drift_simulation.py          # lotes M01…M06: drift PSI/KS + performance
 uv run mlflow ui                                       # execucoes locais (mlflow.db na raiz)
 uv run jupyter lab notebooks/                          # notebooks (versionados com saídas)
 uv run pytest                                          # testes (sem rede)
@@ -133,7 +134,8 @@ compartilhado em vez do `mlflow.db` local) · `MLFLOW_DISABLE_AGENT_HINT=1`
 - Dataset: UCI Default of Credit Card Clients, CC BY 4.0 — ✅ decidido (2026-11-07). Home Credit descartado pelos termos de uso (ADR 12)
 - Biblioteca de contrato: Pandera — ✅ (ADR 02). Relatório em JSON agregado (não HTML). Falha → regra mapeada no próprio contrato, porque o `name=` das checks não aparece em `failure_cases`. Exit codes: 0 aprovado · 1 dados ausentes · 2 bloqueado
 - Rastreamento da Etapa 3: MLflow local (SQLite) + dashboard HTML estático — 🟡 proposta (ADR 05), implementado para ingestão e validação. Banco em `mlflow.db` na raiz e artefatos em `mlartifacts/` (caminho fixo no experimento, nunca relativo ao cwd). `configure_logging()` grava todo evento em `logs/pipeline.jsonl`; testes passam `log_file` temporário
-- Limiares de drift: PSI ≥ 0,10 atenção · PSI ≥ 0,25 crítico · KS confirma — 🟡 proposta
+- Limiares de drift: PSI ≥ 0,10 atenção · PSI ≥ 0,25 crítico · KS confirma (D pelo scipy) — ✅ (ADR 03). Todos em `monitoring.thresholds`, lidos pelos alertas e pelo resumo de drift
+- Simulação de drift (ADR 14, ✅): cenários só em `configs/drift_scenarios.yaml`; **mesma seed em todos os lotes** (com seeds independentes o ruído da AUC, sd 0,012, gerou alerta sem causa no M02); referência = validação + teste (score do treino é otimista). M06 não dispara alerta de performance — achado documentado, **não recalibrar** para esconder. `drift_summary.json` é determinístico e conferido pelo CI; os HTML do Evidently (~5 MB, mudam a cada execução) e o dashboard ficam fora do `git diff` do CI
 - Promoção (ADR 04, ✅): AUC ≥ 0,70 e > Dummy **na validação**; empate (Δ < 0,01) → LogReg. Promovido: XGBoost (val 0,7622 · teste 0,7368), limiar 0,2556 por máximo KS, 19 features só financeiras. Sem busca de hiperparâmetros, por decisão
 - Relatórios gerados sobre o sintético usam `*.synthetic.*` e são ignorados pelo Git: nunca sobrescrevem a evidência real
 - `SEX` e `MARRIAGE` fora das features (ADR 08); `AGE` e `EDUCATION` removidos pela ablação (ADR 13, ✅): sem eles a AUC val. foi de 0,7602 para 0,7622; no teste caiu 0,011, o que está documentado e não reverte a decisão. Auditoria de viés: nenhum grupo abaixo de 4/5; ponto de atenção em escolaridade "ensino médio" (0,864 entre bons pagadores)

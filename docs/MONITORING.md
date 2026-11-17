@@ -3,8 +3,10 @@
 > Métricas de saúde do pipeline, da infraestrutura e do modelo; regras de alerta e
 > playbook de resposta. Implementação na Etapa 3, em `src/monitoring/`.
 
-> 🟡 **Status: implementada para ingestão e validação.** Predição, drift e performance entram
-> no mesmo fluxo quando a Etapa 2 existir; as regras de alerta deles já estão implementadas e testadas.
+> ✅ **Status: implementada para os cinco estágios.** Os lotes M01…M06 da Etapa 2 passam
+> por ingestão, validação, predição, drift e performance
+> ([`src/pipeline/drift.py`](../src/pipeline/drift.py)); os da demonstração do contrato, só
+> pelos dois primeiros. Falta versionar os prints do MLflow.
 
 ---
 

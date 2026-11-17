@@ -1,0 +1,19 @@
+{
+  "batch_id": "M03",
+  "status": "passed",
+  "rows": 2400,
+  "rules_violated": [],
+  "critical": [],
+  "warnings": [
+    {
+      "rule": "W1",
+      "column": "BILL_AMT*",
+      "check": "min < -100000",
+      "cases": 2,
+      "examples": [
+        -261314,
+        -118281
+      ]
+    }
+  ]
+}

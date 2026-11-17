@@ -37,7 +37,7 @@ entregável é a camada de **sustentação** em torno dele:
 
 - **Etapa 1 — Validação de dados:** contrato com Pandera que intercepta e bloqueia lotes inválidos
 - **Etapa 2 — Drift:** lotes mensais simulados + Evidently AI com PSI e Kolmogorov-Smirnov
-- **Etapa 3 — Observabilidade:** logs centralizados, métricas por estágio, alertas, uma execução MLflow por lote e dashboard HTML; predição, drift e performance entram com a Etapa 2
+- **Etapa 3 — Observabilidade:** logs centralizados, métricas por estágio, alertas, uma execução MLflow por lote e dashboard HTML, com predição, drift e performance de cada lote
 - **Etapa 4 — Governança:** plano LGPD, mitigação de vieses e análise causal (neste README)
 
 > O andamento de cada item está em [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -110,7 +110,7 @@ atribuível à simulação.
 tc04-monitoramento-drift/
 ├── configs/
 │   ├── pipeline.yaml           # ✅ Seed, dataset, limpeza, split, contrato e limiares de alerta
-│   └── drift_scenarios.yaml    # ⬜ Perturbações de cada lote simulado (Etapa 2)
+│   └── drift_scenarios.yaml    # ✅ Perturbações de cada lote simulado M01…M06 (Etapa 2)
 ├── data/                       # Não versionado — gerado pelos scripts
 │   ├── raw/                    #   dataset original (e o sintético, se gerado)
 │   ├── reference/              #   dataset de referência (treino)
@@ -124,8 +124,8 @@ tc04-monitoramento-drift/
 ├── notebooks/                  # ✅ 01_eda · ⬜ baseline e análise de drift
 ├── reports/                    # ✅ VERSIONADO — evidências (só agregados; nada do sintético)
 │   ├── model/                  # ✅ comparação dos candidatos (model_comparison.json)
-│   ├── validation/             #   resultado dos contratos por lote
-│   ├── drift/                  #   relatórios Evidently por lote
+│   ├── validation/             # ✅ resultado dos contratos por lote
+│   ├── drift/                  # ✅ relatórios Evidently por lote + drift_summary.json
 │   └── monitoring/             # ✅ dashboard consolidado (dashboard.html)
 ├── scripts/
 │   ├── download_data.py        # ✅ Dataset real (SHA256) ou sintético
@@ -135,15 +135,16 @@ tc04-monitoramento-drift/
 │   ├── validate_batch.py       # ✅ Demonstra o contrato: lote válido passa, corrompido é bloqueado
 │   ├── run_monitoring_demo.py  # ✅ Lote monitorado: estágios, alertas e execução no MLflow
 │   ├── build_monitoring_dashboard.py  # ✅ Regenera o dashboard HTML a partir do MLflow
+│   ├── run_drift_simulation.py # ✅ Lotes M01…M06: drift (PSI/KS) e performance por lote
 │   └── verify_setup.py         # ✅ Diz se o ambiente está pronto e o que falta
 ├── src/
 │   ├── config.py               # ✅ Caminhos, seed e configuração
 │   ├── data/                   # ✅ Esquema, download, sintético, carga, limpeza e split
 │   ├── contracts/              # ✅ Contrato Pandera (C1–C8), avisos e lote corrompido
 │   ├── models/                 # ✅ Candidatos, métricas, promoção, ablação e auditoria de viés
-│   ├── drift/                  # ⬜ Simulação e detecção (Etapa 2)
+│   ├── drift/                  # ✅ Simulação dos cenários e detecção com o Evidently
 │   ├── monitoring/             # ✅ Logging · estágios · alertas · MLflow · dashboard · Pushgateway
-│   └── pipeline/               # ✅ Preparo, validação, treino e lote monitorado · ⬜ demais estágios
+│   └── pipeline/               # ✅ Preparo, validação, treino, lote monitorado e drift
 ├── tests/                      # ✅ pytest, sem dependência de rede
 └── .github/workflows/          # ✅ CI: lint → testes (contrato + monitoramento) · dataset real · commitlint
                                 #    + publicação opcional no ambiente compartilhado
@@ -282,8 +283,9 @@ uv run mlflow ui --backend-store-uri sqlite:///mlflow.db         # execuções e
 | Execuções, métricas e artefatos por lote | MLflow local (`mlflow.db`, não versionado) |
 | Log centralizado de todos os estágios | `logs/pipeline.jsonl` (não versionado; anexado a cada execução) |
 
-Métricas, alertas e playbook: [docs/MONITORING.md](docs/MONITORING.md). Os estágios de
-predição, drift e performance entram no mesmo fluxo com a Etapa 2.
+Métricas, alertas e playbook: [docs/MONITORING.md](docs/MONITORING.md). Os lotes M01…M06
+da Etapa 2 passam pelo mesmo fluxo, com os estágios de predição, drift e performance
+(passo 8).
 
 > 📡 **Opcional — Grafana ao vivo.** Os mesmos lotes podem ser acompanhados no Grafana do
 > laboratório: ver [Ambiente Publicado](#-ambiente-publicado-opcional).
@@ -309,7 +311,7 @@ O modelo vai para `models/baseline/` (não versionado); a comparação completa 
 Leitura dos resultados e limitações no [Model Card](docs/MODEL_CARD.md).
 
 O modelo usa **só as 19 variáveis financeiras**: `AGE` e `EDUCATION` saíram pela ablação
-do passo 6.
+do passo 7.
 
 ### 7. Ablação e auditoria de viés
 
@@ -324,7 +326,41 @@ uv run python scripts/audit_model.py
   aprovação e recall por grupo de sexo, idade, escolaridade e estado civil, no teste,
   com o modelo promovido. Leitura na [seção 6 de Governança](#6-mitigação-de-vieses).
 
-### 8. Testes e qualidade de código
+### 8. Simulação e detecção de drift (Etapa 2)
+
+```bash
+uv run python scripts/run_drift_simulation.py      # exige os passos 2 e 6
+```
+
+Gera seis lotes mensais de 2.400 linhas a partir do pool de produção, com as perturbações
+declaradas em [`configs/drift_scenarios.yaml`](configs/drift_scenarios.yaml). Cada lote
+passa pelo contrato, pelo modelo e pela detecção, que usa **PSI e KS configurados
+explicitamente** no Evidently, coluna a coluna, contra a janela de referência
+(validação + teste). Cada lote também vira uma execução no MLflow, e o dashboard é
+regenerado.
+
+> 🔴 **O drift é simulado.** Os rótulos de cada lote são revelados no próprio lote.
+
+| Lote | Cenário | Colunas com PSI ≥ 0,10 | AUC | Alertas |
+|------|---------|------------------------|-----|---------|
+| Referência | — | — | 0,7495 | — |
+| M01 | Controle, sem perturbação | nenhuma | 0,7496 | nenhum |
+| M02 | Faturas +10% | nenhuma (o KS acusa; o PSI, não) | 0,7489 | nenhum |
+| M03 | Mais jovens, faturas +25% | `AGE` | 0,7654 | atenção |
+| M04 | Aperto de crédito | `LIMIT_BAL`, `PAY_0`, `AGE` e o score | 0,7930 | atenção (drift sem degradação) |
+| M05 | Concept drift | nenhuma | 0,6821 | **crítico: AUC e recall** |
+| M06 | Crise (M04 + M05) | `LIMIT_BAL`, `PAY_0`, `AGE` e o score | 0,7286 | atenção — a queda de performance fica escondida |
+
+| Evidência | Onde |
+|-----------|------|
+| Números de todos os lotes | [`reports/drift/drift_summary.json`](reports/drift/drift_summary.json) |
+| Relatório do Evidently por lote (baixe e abra no navegador) | `reports/drift/M01.html` … `M06.html` |
+| Contrato de cada lote | `reports/validation/M01.json` … `M06.json` |
+
+A leitura completa — falso positivo, KS × PSI, drift sem degradação, degradação silenciosa
+e o M06 — está em [docs/DRIFT.md](docs/DRIFT.md#-resultados).
+
+### 9. Testes e qualidade de código
 
 ```bash
 uv run pytest
@@ -398,7 +434,7 @@ uv run python scripts/run_monitoring_demo.py --demo corrupted   # exit 2
 |-------|-----------|-----------|--------|
 | **0** | — | Documentação, regras, ambiente, download do dataset e CI | ✅ Concluída |
 | **1** | Validação de Dados e Bibliotecas de Qualidade | Contrato Pandera + lote ruim bloqueado + modelo baseline | ✅ Concluída |
-| **2** | Data Drift | Lotes simulados + relatórios Evidently (PSI/KS) | ⬜ Não iniciada |
+| **2** | Data Drift | Lotes simulados + relatórios Evidently (PSI/KS) | 🟡 Em andamento: lotes e relatórios prontos; falta a análise causal |
 | **3** | Monitoramento de Pipelines e Infraestrutura | Logs centralizados + MLflow + dashboard | 🟡 Em andamento |
 | **4** | Privacy by Design e by Default | Governança LGPD + análise causal + vídeo STAR | 🟡 Em andamento |
 
@@ -609,4 +645,4 @@ intervenção, não uma correlação.
 
 ---
 
-**Última atualização:** 2026-11-16
+**Última atualização:** 2026-11-17

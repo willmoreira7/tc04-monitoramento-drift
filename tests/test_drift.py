@@ -21,11 +21,13 @@ from src.monitoring.prometheus import PUSHGATEWAY_ENV
 from src.pipeline import drift as drift_stage
 from src.pipeline import prepare
 from src.pipeline import train as train_stage
+from src.pipeline.io import json_text
 from src.pipeline.monitor import run_monitored_batch
 from src.pipeline.validate import IngestedBatch
 
 SEED = get_seed()
 BILLS = [f"BILL_AMT{i}" for i in range(1, 7)]
+EVIDENCE = drift_stage.DRIFT_REPORT_DIR / drift_stage.SUMMARY_FILE
 
 
 @pytest.fixture
@@ -103,6 +105,23 @@ def test_scenarios_drift_at_least_two_model_features() -> None:
     assert len(expected - excluded) >= 2
 
 
+def test_versioned_evidence_meets_every_declared_expectation() -> None:
+    """Expectativas valem no dataset real: confere a evidencia versionada lote a lote.
+
+    O CI (job do dataset real) regenera ``drift_summary.json`` e exige que ele saia igual
+    ao versionado; este teste exige que, nele, cada lote faca o que o cenario declara.
+    """
+    summary = json.loads(EVIDENCE.read_text(encoding="utf-8"))
+    assert summary["source"] == "real"
+    assert list(summary["batches"]) == list(load_scenarios())
+    for batch_id, batch in summary["batches"].items():
+        expected = load_scenarios()[batch_id]["expected"]
+        assert batch["expected"] == expected, f"{batch_id}: resumo desatualizado em relacao ao YAML"
+        assert sorted(batch["drifted"]) == sorted(expected["drifted"]), batch_id
+        assert batch["performance_alert"] == expected["performance_alert"], batch_id
+        assert batch["expectation_met"], batch_id
+
+
 def test_scenarios_only_touch_known_columns() -> None:
     known = set(FEATURE_NAMES)
     for scenario in load_scenarios().values():
@@ -127,6 +146,33 @@ def test_detection_separates_stable_from_shifted_columns() -> None:
     assert results["stable"].psi < 0.10 < 0.25 < results["shifted"].psi
     assert results["shifted"].ks_d > results["stable"].ks_d
     assert results["shifted"].ks_pvalue < 0.05
+
+
+# --- Relatorios HTML (30 MB: so substituidos quando o resumo muda) ----------------------
+
+
+def test_summary_change_is_detected_byte_for_byte(tmp_path: Path) -> None:
+    summary_file = tmp_path / "drift_summary.json"
+    assert drift_stage.summary_changed(summary_file, {"a": 1})  # ainda nao existe
+    summary_file.write_text(json_text({"a": 1}), encoding="utf-8", newline="\n")
+    assert not drift_stage.summary_changed(summary_file, {"a": 1})
+    assert drift_stage.summary_changed(summary_file, {"a": 2})
+
+
+def test_html_reports_are_kept_when_numbers_did_not_change(tmp_path: Path) -> None:
+    staging, reports = tmp_path / "staging", tmp_path / "reports"
+    staging.mkdir()
+    reports.mkdir()
+    (staging / "M01.html").write_text("novo", encoding="utf-8")
+    (staging / "M02.html").write_text("novo", encoding="utf-8")
+    (reports / "M01.html").write_text("versionado", encoding="utf-8")
+
+    copied = drift_stage.publish_html_reports(staging, reports, refresh=False)
+
+    assert copied == [reports / "M02.html"]  # so o que faltava
+    assert (reports / "M01.html").read_text(encoding="utf-8") == "versionado"
+    drift_stage.publish_html_reports(staging, reports, refresh=True)
+    assert (reports / "M01.html").read_text(encoding="utf-8") == "novo"
 
 
 # --- Pipeline ---------------------------------------------------------------------------
@@ -166,9 +212,15 @@ def test_drift_simulation_end_to_end(isolated: Path, monkeypatch: pytest.MonkeyP
         ref, prod, model, report, isolated / "val", isolated / "q", isolated / "pipeline.jsonl"
     )
 
+    # As expectativas foram calibradas no dataset real (no sintetico ate o M01 erra):
+    # aqui so se confere que cada lote as registra; quem exige que sejam atendidas e
+    # test_versioned_evidence_meets_every_declared_expectation, sobre a evidencia real.
     batches = summary["batches"]
     assert list(batches) == list(load_scenarios())
     assert {batch["status"] for batch in batches.values()} == {"success"}
+    for batch_id, batch in batches.items():
+        assert batch["expected"] == load_scenarios()[batch_id]["expected"]
+        assert isinstance(batch["expectation_met"], bool)
     assert batches["M01"]["drifted"] == []
     assert batches["M05"]["drifted"] == []
     assert batches["M05"]["performance"]["auc"] < batches["M01"]["performance"]["auc"]

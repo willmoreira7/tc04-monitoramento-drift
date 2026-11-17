@@ -1171,9 +1171,9 @@
           "LIMIT_BAL",
           "PAY_0"
         ],
-        "performance_alert": true
+        "performance_alert": false
       },
-      "expectation_met": false
+      "expectation_met": true
     }
   }
 }

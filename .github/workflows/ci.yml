@@ -89,6 +89,24 @@ jobs:
           echo "exit code: $code"
           test "$code" -eq 2
 
+      - name: Monitoramento - lote valido registrado (sintetico)
+        run: uv run python scripts/run_monitoring_demo.py --demo valid
+
+      # Mesmo criterio do contrato: o lote corrompido e registrado E bloqueado (exit 2).
+      - name: Monitoramento - lote corrompido bloqueado e registrado (sintetico)
+        shell: bash
+        run: |
+          set +e
+          uv run python scripts/run_monitoring_demo.py --demo corrupted
+          code=$?
+          echo "exit code: $code"
+          test "$code" -eq 2
+
+      - name: Dashboard de monitoramento (sintetico)
+        run: |
+          uv run python scripts/build_monitoring_dashboard.py --source synthetic
+          test -s reports/monitoring/dashboard.synthetic.html
+
       - name: pytest
         run: uv run pytest --cov=src --cov-report=term-missing
 

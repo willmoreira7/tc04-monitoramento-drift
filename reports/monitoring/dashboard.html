@@ -1,0 +1,21 @@
+<!doctype html><html lang='pt-BR'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Monitoramento TC04</title><style>
+:root{--bg:#fff;--fg:#17202a;--muted:#5d6d7e;--line:#d5dbdf;--head:#eef3f7;
+--ok:#176b36;--bad:#a93226;--warn:#8a5a00;--tile:#f7f9fa}
+@media (prefers-color-scheme:dark){:root{--bg:#14181c;--fg:#e6eaee;--muted:#9aa7b3;
+--line:#34404b;--head:#1e262d;--ok:#6fcf97;--bad:#f1948a;--warn:#f0c674;--tile:#1a2026}}
+body{font:15px/1.45 system-ui,sans-serif;margin:0;padding:1.5rem 1rem;background:var(--bg);
+color:var(--fg)}
+main{max-width:1200px;margin:0 auto}
+h1{font-size:1.5rem;margin:0 0 .25rem}h2{font-size:1.1rem;margin:2rem 0 .5rem}
+p{color:var(--muted);margin:.25rem 0 1rem}
+.tiles{display:flex;flex-wrap:wrap;gap:.75rem}
+.tile{background:var(--tile);border:1px solid var(--line);border-radius:8px;
+padding:.6rem 1rem;min-width:8rem}
+.tile b{display:block;font-size:1.6rem}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{border:1px solid var(--line);padding:.45rem .6rem;text-align:left;white-space:nowrap}
+th{background:var(--head)}td.num{text-align:right}
+.success{color:var(--ok)}.blocked,.failed,.critical{color:var(--bad);font-weight:600}
+.warning{color:var(--warn);font-weight:600}.none{color:var(--muted)}
+</style></head><body><main><h1>Monitoramento do pipeline de credit scoring</h1><p>Origem dos dados: <b>real</b>. Execução mais recente de cada lote; 6 execuções no histórico do MLflow, 0 com falha inesperada.</p><div class='tiles'><div class='tile'><b>2</b>Lotes</div><div class='tile'><b>1</b>Bloqueados</div><div class='tile'><b>0</b>Com falha</div><div class='tile'><b>1</b>Alertas críticos</div><div class='tile'><b>0</b>Alertas de atenção</div></div><h2>Saúde por lote</h2><div class='scroll'><table><thead><tr><th>Lote</th><th>Cenário</th><th>Executado em (UTC)</th><th>Status</th><th>Ingestão</th><th>Validação</th><th>Predição</th><th>Drift</th><th>Performance</th><th>Linhas entrada</th><th>Linhas saída</th><th>Duração (s)</th><th>Linhas/s</th><th>Pico memória (MB)</th></tr></thead><tbody><tr><td>demo_corrupted</td><td>contract_demo</td><td>2026-11-17 00:28</td><td class='blocked'>bloqueado</td><td class='success'>sucesso · 0.03 s</td><td class='blocked'>bloqueado · 0.04 s</td><td class='none'>—</td><td class='none'>—</td><td class='none'>—</td><td class='num'>500</td><td class='num'>0</td><td class='num'>0.07</td><td class='num'>7587</td><td class='num'>262</td></tr><tr><td>demo_valid</td><td>contract_demo</td><td>2026-11-17 00:28</td><td class='success'>sucesso</td><td class='success'>sucesso · 0.03 s</td><td class='success'>sucesso · 0.02 s</td><td class='none'>—</td><td class='none'>—</td><td class='none'>—</td><td class='num'>2400</td><td class='num'>2400</td><td class='num'>0.05</td><td class='num'>51977</td><td class='num'>256</td></tr></tbody></table></div><h2>Drift e performance do modelo</h2><div class='scroll'><table><thead><tr><th>Lote</th><th>Features com drift</th><th>Maior PSI de feature</th><th>PSI do score</th><th>Taxa de aprovação</th><th>AUC</th><th>Recall inadimplentes</th></tr></thead><tbody><tr><td>demo_corrupted</td><td class='num none'>—</td><td>—</td><td class='num none'>—</td><td class='num none'>—</td><td class='num none'>—</td><td class='num none'>—</td></tr><tr><td>demo_valid</td><td class='num none'>—</td><td>—</td><td class='num none'>—</td><td class='num none'>—</td><td class='num none'>—</td><td class='num none'>—</td></tr></tbody></table></div><h2>Alertas</h2><div class='scroll'><table><thead><tr><th>Lote</th><th>Severidade</th><th>Alerta</th><th>Ação do playbook</th></tr></thead><tbody><tr><td>demo_corrupted</td><td class='critical'>crítico</td><td>batch_blocked</td><td>investigate_source_and_reprocess</td></tr></tbody></table></div><p>Status de estágio: sucesso, falha (erro inesperado) ou bloqueado (contrato de dados reprovou o lote na entrada). “—” = estágio não executado ou métrica ainda não disponível. Métricas de performance dependem da chegada dos rótulos. Fonte: MLflow local; definições em docs/MONITORING.md.</p></main></body></html>

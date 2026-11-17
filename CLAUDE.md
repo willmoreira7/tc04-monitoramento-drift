@@ -93,13 +93,18 @@ uv run python scripts/train_model.py                   # treina, compara e promo
 uv run python scripts/audit_model.py                   # ablação AGE/EDUCATION + viés por grupo (ADR 13)
 uv run python scripts/validate_batch.py --demo valid   # contrato: lote válido passa (exit 0)
 uv run python scripts/validate_batch.py --demo corrupted  # lote corrompido bloqueado (exit 2)
+uv run python scripts/run_monitoring_demo.py --demo valid      # lote monitorado + run MLflow (exit 0)
+uv run python scripts/run_monitoring_demo.py --demo corrupted  # idem, bloqueado (exit 2)
+uv run python scripts/build_monitoring_dashboard.py    # dashboard HTML (--source synthetic)
+uv run mlflow ui                                       # execucoes locais (mlflow.db na raiz)
 uv run jupyter lab notebooks/                          # notebooks (versionados com saídas)
 uv run pytest                                          # testes (sem rede)
 uv run ruff check . && uv run ruff format --check .    # lint
 uv run nbqa ruff notebooks/                            # lint dos notebooks
 ```
 
-Variáveis úteis: `TC04_LOG_FORMAT=json` (logs em JSON) · `MLFLOW_DISABLE_AGENT_HINT=1`
+Variáveis úteis: `TC04_LOG_FORMAT=json` (logs em JSON) · `TC04_PUSHGATEWAY_URL` (opcional: envia
+as métricas do lote ao Pushgateway/Grafana da Fase 3) · `MLFLOW_DISABLE_AGENT_HINT=1`
 (silencia a dica de console do MLflow) · `UV_LINK_MODE=copy` (OneDrive não suporta hardlink).
 
 ---
@@ -125,7 +130,7 @@ Variáveis úteis: `TC04_LOG_FORMAT=json` (logs em JSON) · `MLFLOW_DISABLE_AGEN
 
 - Dataset: UCI Default of Credit Card Clients, CC BY 4.0 — ✅ decidido (2026-11-07). Home Credit descartado pelos termos de uso (ADR 12)
 - Biblioteca de contrato: Pandera — ✅ (ADR 02). Relatório em JSON agregado (não HTML). Falha → regra mapeada no próprio contrato, porque o `name=` das checks não aparece em `failure_cases`. Exit codes: 0 aprovado · 1 dados ausentes · 2 bloqueado
-- Rastreamento da Etapa 3: MLflow local (SQLite) + dashboard HTML estático — 🟡 proposta (ADR 05)
+- Rastreamento da Etapa 3: MLflow local (SQLite) + dashboard HTML estático — 🟡 proposta (ADR 05), implementado para ingestão e validação. Banco em `mlflow.db` na raiz e artefatos em `mlartifacts/` (caminho fixo no experimento, nunca relativo ao cwd). `configure_logging()` grava todo evento em `logs/pipeline.jsonl`; testes passam `log_file` temporário
 - Limiares de drift: PSI ≥ 0,10 atenção · PSI ≥ 0,25 crítico · KS confirma — 🟡 proposta
 - Promoção (ADR 04, ✅): AUC ≥ 0,70 e > Dummy **na validação**; empate (Δ < 0,01) → LogReg. Promovido: XGBoost (val 0,7622 · teste 0,7368), limiar 0,2556 por máximo KS, 19 features só financeiras. Sem busca de hiperparâmetros, por decisão
 - Relatórios gerados sobre o sintético usam `*.synthetic.*` e são ignorados pelo Git: nunca sobrescrevem a evidência real

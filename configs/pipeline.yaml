@@ -2,12 +2,6 @@
 # Documentacao: docs/DATASET.md, docs/DATA_CONTRACTS.md, docs/DRIFT.md, docs/MONITORING.md
 
 seed: 42
-monitoring:
-  thresholds:
-    psi_warning: 0.10
-    psi_critical: 0.25
-    score_psi_warning: 0.10
-    auc_drop_critical: 0.05
 
 dataset:
   name: uci_default_of_credit_card_clients
@@ -97,3 +91,12 @@ synthetic:
   # Fallback para quem nao conseguir baixar o dataset real e para o CI.
   # Valida o pipeline; NAO reproduz as metricas documentadas.
   default_rows: 30000
+
+monitoring:
+  # docs/MONITORING.md. Limiares dos alertas avaliados a cada lote.
+  # O alerta de volume reusa contract.warnings.volume_tolerance (mesma regra, um so lugar).
+  thresholds:
+    psi_warning: 0.10         # PSI de feature: atencao
+    psi_critical: 0.25        # PSI de feature: critico
+    score_psi_warning: 0.10   # PSI do score (drift de predicao): atencao
+    auc_drop_critical: 0.05   # queda de AUC em relacao a referencia: critico

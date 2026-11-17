@@ -1,41 +1,381 @@
-"""Testes unitários da camada de monitoramento."""
+"""Testes da camada de observabilidade: logs, estagios, alertas, MLflow e dashboard."""
 
-from src.monitoring.tracking import _escape, build_dashboard, evaluate_alerts, log_batch_run
+import json
+from collections.abc import Iterator
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
+from threading import Thread
+
+import mlflow
+import pytest
+import structlog
+from prometheus_client import CollectorRegistry
+
+from src.config import get_seed
+from src.contracts.result import ContractResult, ContractViolationError, Violation
+from src.data import loader
+from src.data.synthetic import generate_synthetic
+from src.monitoring.alerts import evaluate_alerts
+from src.monitoring.dashboard import build_dashboard, render_dashboard
+from src.monitoring.log import configure_logging, get_logger, read_run_events
+from src.monitoring.prometheus import PUSHGATEWAY_ENV, build_registry, push_batch_metrics
+from src.monitoring.stages import BatchRecorder
+from src.monitoring.tracking import BatchRun, load_batch_runs, log_batch_run
+from src.pipeline import monitor, prepare
+from src.pipeline.validate import DemoBatch
+
+SEED = get_seed()
+
+
+@pytest.fixture
+def log_file(tmp_path: Path) -> Iterator[Path]:
+    """Log centralizado em diretorio temporario; restaura o structlog ao final."""
+    path = tmp_path / "logs" / "pipeline.jsonl"
+    configure_logging("json", log_file=path)
+    yield path
+    structlog.reset_defaults()
+
+
+@pytest.fixture
+def tracking(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """MLflow isolado: banco e artefatos dentro de ``tmp_path``."""
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", f"sqlite:///{(tmp_path / 'mlflow.db').as_posix()}")
+    return tmp_path
+
+
+def _names(alerts: list[dict[str, str]]) -> list[tuple[str, str]]:
+    return [(alert["name"], alert["severity"]) for alert in alerts]
+
+
+# --- logs -----------------------------------------------------------------------------
+
+
+def test_every_event_is_one_json_line_in_the_central_log(log_file: Path) -> None:
+    logger = get_logger("test")
+    logger.info("stage_ingestion", stage="ingestion", status="success", rows_in=10)
+    logger.error("stage_validation", stage="validation", status="blocked", rows_in=10)
+
+    lines = log_file.read_text(encoding="utf-8").splitlines()
+    events = [json.loads(line) for line in lines]
+    assert [event["event"] for event in events] == ["stage_ingestion", "stage_validation"]
+    assert events[1]["level"] == "error"
+    assert "timestamp" in events[0]
+
+
+def test_run_events_are_filtered_by_pipeline_run(log_file: Path) -> None:
+    logger = get_logger("test")
+    with structlog.contextvars.bound_contextvars(pipeline_run_id="run-a"):
+        logger.info("mine")
+    with structlog.contextvars.bound_contextvars(pipeline_run_id="run-b"):
+        logger.info("other", note="mentions run-a but belongs to run-b")
+
+    assert [event["event"] for event in read_run_events("run-a", log_file)] == ["mine"]
+    assert read_run_events("run-a", log_file.with_name("missing.jsonl")) == []
+
+
+# --- estagios -------------------------------------------------------------------------
+
+
+def test_recorder_measures_successful_stages() -> None:
+    recorder = BatchRecorder("batch")
+    with recorder.stage("ingestion") as stage:
+        stage.rows_in = stage.rows_out = 100
+    with recorder.stage("validation", rows_in=100) as stage:
+        stage.rows_out = 100
+
+    metrics = recorder.metrics()
+    assert recorder.status == "success"
+    assert metrics["stage_status_ingestion"] == metrics["stage_status_validation"] == 1.0
+    assert metrics["rows_in"] == metrics["rows_out"] == 100
+    assert metrics["pipeline_duration_s"] >= metrics["stage_duration_s_validation"] >= 0
+    assert metrics["peak_memory_mb"] > 0
+    assert "stage_status_prediction" not in metrics  # estagio que nao rodou nao aparece
+
+
+def test_recorder_marks_contract_violation_as_blocked() -> None:
+    result = ContractResult(50, [Violation("C4", "AGE", "in_range", 2)], [])
+    recorder = BatchRecorder("batch")
+    with (
+        pytest.raises(ContractViolationError),
+        recorder.stage("validation", rows_in=50),
+    ):
+        raise ContractViolationError("batch", result)
+
+    metrics = recorder.metrics()
+    assert recorder.status == "blocked"
+    assert metrics["stage_status_validation"] == -1.0
+    assert metrics["rows_out"] == 0
+
+
+def test_recorder_marks_unexpected_error_as_failed_and_reraises() -> None:
+    recorder = BatchRecorder("batch")
+    with pytest.raises(RuntimeError), recorder.stage("ingestion"):
+        raise RuntimeError("disco cheio")
+
+    assert recorder.status == "failed"
+    assert recorder.metrics()["stage_status_ingestion"] == 0.0
+
+
+def test_recorder_rejects_unknown_stage() -> None:
+    with pytest.raises(ValueError, match="desconhecido"), BatchRecorder("batch").stage("deploy"):
+        pass
+
+
+# --- alertas --------------------------------------------------------------------------
 
 
 def test_alert_rules_use_configured_psi_thresholds() -> None:
-    """PSI em atenção/crítico e score geram alertas com severidade distinta."""
-    alerts = evaluate_alerts({"psi_limit_balance": 0.12, "psi_payment": 0.26, "psi_score": 0.11})
-    assert [(item["name"], item["severity"]) for item in alerts] == [
-        ("psi_limit_balance", "warning"),
-        ("psi_payment", "critical"),
+    alerts = evaluate_alerts({"psi_LIMIT_BAL": 0.12, "psi_PAY_0": 0.26, "psi_score": 0.11})
+    assert _names(alerts) == [
+        ("psi_LIMIT_BAL", "warning"),
+        ("psi_PAY_0", "critical"),
         ("psi_score", "warning"),
     ]
 
 
 def test_alert_rules_ignore_healthy_metrics() -> None:
-    """Métricas abaixo dos limites não devem gerar alertas."""
-    assert evaluate_alerts({"psi_feature": 0.04, "auc_drop": 0.01}) == []
+    healthy = {"psi_PAY_0": 0.04, "psi_score": 0.02, "auc_drop": 0.01, "rows_in": 2400}
+    assert evaluate_alerts({**healthy, "rows_expected": 2400}) == []
 
 
-def test_mlflow_run_and_static_dashboard(tmp_path, monkeypatch) -> None:
-    """Uma execução batch local aparece no HTML consolidado."""
-    monkeypatch.setenv("MLFLOW_TRACKING_URI", f"sqlite:///{tmp_path / 'tracking.db'}")
-    log_batch_run(
-        "batch-test",
+def test_auc_drop_is_critical() -> None:
+    assert _names(evaluate_alerts({"auc_drop": 0.05})) == [("auc_drop", "critical")]
+
+
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [("blocked", "batch_blocked"), ("failed", "stage_failure")],
+)
+def test_blocked_and_failed_batches_raise_critical_alerts(status: str, expected: str) -> None:
+    assert _names(evaluate_alerts({}, status)) == [(expected, "critical")]
+
+
+@pytest.mark.parametrize(
+    ("rows", "alerted"), [(2400, False), (1700, False), (1600, True), (3200, True)]
+)
+def test_volume_outside_tolerance_raises_warning(rows: int, alerted: bool) -> None:
+    """Tolerancia de 30% sobre 2400 linhas: 1680 a 3120 passam."""
+    alerts = evaluate_alerts({"rows_in": rows, "rows_expected": 2400})
+    assert _names(alerts) == ([("volume_anomaly", "warning")] if alerted else [])
+
+
+# --- MLflow e dashboard ---------------------------------------------------------------
+
+
+def test_batch_run_is_tracked_with_metrics_alerts_and_logs(tracking: Path) -> None:
+    alerts = evaluate_alerts({}, "blocked")
+    run_id = log_batch_run(
+        "M99",
         scenario="unit_test",
         status="blocked",
+        source="real",
         metrics={"rows_in": 10, "rows_out": 0},
+        alerts=alerts,
+        events=[{"event": "stage_validation", "status": "blocked"}],
     )
-    dashboard = build_dashboard(tmp_path / "dashboard.html")
-    html = dashboard.read_text(encoding="utf-8")
-    assert "batch-test" in html
-    assert "blocked" in html
-    assert "rows_out" in html
+
+    [run] = load_batch_runs()
+    assert (run.batch_id, run.scenario, run.status, run.source) == (
+        "M99",
+        "unit_test",
+        "blocked",
+        "real",
+    )
+    assert run.alerts == alerts
+    assert run.metrics["batch_blocked"] == 1.0
+    assert run.metrics["alerts_critical"] == 1.0
+    logged = Path(mlflow.artifacts.download_artifacts(run_id=run_id, artifact_path="logs"))
+    line = (logged / "pipeline.jsonl").read_text(encoding="utf-8").strip()
+    assert json.loads(line)["event"] == "stage_validation"
+    assert (tracking / "mlartifacts").is_dir()  # artefatos ao lado do banco, nao no cwd
 
 
-def test_html_values_are_escaped() -> None:
-    """O dashboard não interpreta valores de tags como markup HTML."""
-    assert _escape("<script>alert('x')</script>") == (
-        "&lt;script&gt;alert(&#x27;x&#x27;)&lt;/script&gt;"
+def test_batch_run_rejects_unknown_status(tracking: Path) -> None:
+    with pytest.raises(ValueError, match="Status"):
+        log_batch_run("M99", status="ok")
+
+
+def test_dashboard_shows_latest_run_per_batch_and_separates_sources(tracking: Path) -> None:
+    log_batch_run("M01", status="failed", source="real", metrics={"stage_status_ingestion": 0})
+    log_batch_run(
+        "M01",
+        status="success",
+        source="real",
+        metrics={"stage_status_ingestion": 1, "stage_duration_s_ingestion": 0.5, "rows_in": 2400},
     )
+    log_batch_run("S01", status="success", source="synthetic")
+
+    real = build_dashboard("real", tracking / "real.html").read_text("utf-8")
+    synthetic = build_dashboard("synthetic", tracking / "synthetic.html").read_text("utf-8")
+    assert "sucesso · 0.50 s" in real
+    assert "<td class='failed'>falha</td>" not in real  # a execucao antiga saiu da tabela
+    assert "1 com falha inesperada" in real  # mas segue contada no historico
+    assert "S01" not in real
+    assert "S01" in synthetic
+    assert "M01" not in synthetic
+
+
+def test_dashboard_default_path_never_overwrites_real_evidence(
+    tracking: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("src.monitoring.dashboard.DASHBOARD_DIR", tracking / "reports")
+    assert build_dashboard("real").name == "dashboard.html"
+    assert build_dashboard("synthetic").name == "dashboard.synthetic.html"
+
+
+def test_dashboard_escapes_dynamic_values() -> None:
+    run = BatchRun(
+        batch_id="<script>alert('x')</script>",
+        scenario="s",
+        status="blocked",
+        source="real",
+        started_ms=0,
+        metrics={"stage_status_validation": -1.0, "alerts_critical": 1.0},
+        alerts=[{"name": "batch_blocked", "severity": "critical", "action": "<b>agir</b>"}],
+    )
+    html = render_dashboard([run], "real")
+    assert "<script>" not in html
+    assert "<b>agir</b>" not in html
+    assert "&lt;script&gt;" in html
+    assert "bloqueado · 0.00 s" in html
+
+
+# --- execucao monitorada fim a fim ----------------------------------------------------
+
+
+def test_monitored_demo_end_to_end(
+    tracking: Path, log_file: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    raw_file = tracking / "synthetic.csv"
+    generate_synthetic(8_000, seed=SEED).to_csv(raw_file, index=False)
+    monkeypatch.setattr(loader, "synthetic_dataset_path", lambda: raw_file)
+    dirs = {"reference_dir": tracking / "ref", "production_dir": tracking / "prod"}
+    prepare.prepare_data(prepare.DataSource.SYNTHETIC, validation_report_dir=tracking / "r", **dirs)
+    run_dirs = {
+        **dirs,
+        "quarantine_dir": tracking / "q",
+        "report_dir": tracking / "r",
+        "log_file": log_file,
+    }
+
+    valid = monitor.run_monitored_demo(DemoBatch.VALID, "test", **run_dirs)
+    blocked = monitor.run_monitored_demo(DemoBatch.CORRUPTED, "test", **run_dirs)
+    failed = monitor.run_monitored_demo(
+        DemoBatch.VALID, "test", **{**run_dirs, "production_dir": tracking / "missing"}
+    )
+
+    assert (valid.status, valid.source, valid.alerts) == ("success", "synthetic", [])
+    assert blocked.status == "blocked"
+    assert _names(blocked.alerts) == [("batch_blocked", "critical")]
+    assert failed.status == "failed"
+    assert _names(failed.alerts) == [("stage_failure", "critical")]
+
+    runs = {run.status: run for run in load_batch_runs()}
+    assert runs["success"].metrics["rows_out"] == runs["success"].metrics["rows_in"] > 0
+    assert runs["blocked"].metrics["stage_status_ingestion"] == 1.0
+    assert runs["blocked"].metrics["stage_status_validation"] == -1.0
+    assert runs["blocked"].metrics["rows_out"] == 0
+    assert runs["blocked"].metrics["contract_violations_C4"] > 0
+    assert runs["failed"].metrics["stage_status_ingestion"] == 0.0
+    assert "stage_status_validation" not in runs["failed"].metrics
+
+    logs = Path(mlflow.artifacts.download_artifacts(run_id=blocked.mlflow_run_id)) / "logs"
+    events = [json.loads(line) for line in (logs / "pipeline.jsonl").read_text().splitlines()]
+    assert {event["batch_id"] for event in events} == {"demo_corrupted"}
+    assert {"stage_ingestion", "stage_validation", "alert", "pipeline_finished"} <= {
+        event["event"] for event in events
+    }
+
+
+# --- Prometheus Pushgateway (camada opcional) -----------------------------------------
+
+
+def _samples(registry: CollectorRegistry) -> dict[tuple[str, tuple[tuple[str, str], ...]], float]:
+    return {
+        (sample.name, tuple(sorted(sample.labels.items()))): sample.value
+        for family in registry.collect()
+        for sample in family.samples
+    }
+
+
+def test_batch_metrics_become_bounded_prometheus_series() -> None:
+    registry = build_registry(
+        scenario="inflation",
+        status="blocked",
+        metrics={
+            "rows_in": 500,
+            "stage_status_validation": -1,
+            "stage_duration_s_validation": 0.05,
+            "contract_violations": 7,
+            "contract_violations_C4": 5,
+            "psi_PAY_0": 0.31,
+            "psi_score": 0.12,
+            "ks_d_PAY_0": 0.2,
+        },
+        alerts=evaluate_alerts({}, "blocked"),
+    )
+
+    samples = _samples(registry)
+    assert samples[("tc04_batch_rows_in", ())] == 500
+    assert samples[("tc04_batch_status", ())] == -1
+    assert samples[("tc04_stage_status", (("stage", "validation"),))] == -1
+    assert samples[("tc04_stage_duration_seconds", (("stage", "validation"),))] == 0.05
+    assert samples[("tc04_batch_contract_violations", ())] == 7  # total, sem label
+    assert samples[("tc04_contract_violations", (("rule", "C4"),))] == 5
+    assert samples[("tc04_feature_psi", (("feature", "PAY_0"),))] == 0.31
+    assert samples[("tc04_batch_psi_score", ())] == 0.12  # score nao e feature
+    assert samples[("tc04_feature_ks_d", (("feature", "PAY_0"),))] == 0.2
+    assert samples[("tc04_batch_info", (("scenario", "inflation"),))] == 1
+    alert = (
+        ("action", "investigate_source_and_reprocess"),
+        ("alert", "batch_blocked"),
+        ("severity", "critical"),
+    )
+    assert samples[("tc04_batch_alert", alert)] == 1
+
+
+def test_push_is_disabled_without_gateway(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv(PUSHGATEWAY_ENV, raising=False)
+    assert not push_batch_metrics("M01", scenario="s", status="success", source="real", metrics={})
+
+
+def test_unreachable_gateway_never_breaks_the_batch() -> None:
+    pushed = push_batch_metrics(
+        "M01",
+        scenario="s",
+        status="success",
+        source="real",
+        metrics={"rows_in": 1},
+        gateway="http://127.0.0.1:1",
+    )
+    assert pushed is False
+
+
+def test_push_sends_one_group_per_batch_and_source(monkeypatch: pytest.MonkeyPatch) -> None:
+    received: list[tuple[str, str, str]] = []
+
+    class Gateway(BaseHTTPRequestHandler):
+        def do_PUT(self) -> None:  # noqa: N802 - nome exigido pelo http.server
+            body = self.rfile.read(int(self.headers["Content-Length"])).decode()
+            received.append((self.command, self.path, body))
+            self.send_response(200)
+            self.end_headers()
+
+        def log_message(self, *args: object) -> None:
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Gateway)
+    Thread(target=server.serve_forever, daemon=True).start()
+    monkeypatch.setenv(PUSHGATEWAY_ENV, f"http://127.0.0.1:{server.server_port}")
+    try:
+        pushed = push_batch_metrics(
+            "M01", scenario="control", status="success", source="real", metrics={"rows_in": 2400}
+        )
+    finally:
+        server.shutdown()
+
+    assert pushed is True
+    [(method, path, body)] = received
+    assert method == "PUT"  # substitui o grupo: series antigas do lote nao sobrevivem
+    assert path == "/metrics/job/tc04_batch/batch_id/M01/source/real"
+    assert "tc04_batch_rows_in 2400.0" in body

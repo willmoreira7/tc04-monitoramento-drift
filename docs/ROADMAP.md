@@ -13,7 +13,7 @@
 | [1 — Validação de Dados](#-etapa-1--validação-de-dados-e-contratos) | Validação de Dados e Bibliotecas de Qualidade | 25% | ✅ Concluída |
 | [2 — Drift](#-etapa-2--simulação-e-detecção-de-drift) | Data Drift | 25% | ⬜ Não iniciada |
 | [3 — Observabilidade](#-etapa-3--observabilidade-de-pipelines-e-modelos) | Monitoramento de Pipelines e Infraestrutura | 20% | 🟡 Em andamento |
-| [4 — Governança e Entrega](#%EF%B8%8F-etapa-4--governança-causalidade-e-entrega) | Privacy by Design e by Default | 15% + 15% (vídeo) | ⬜ Não iniciada |
+| [4 — Governança e Entrega](#%EF%B8%8F-etapa-4--governança-causalidade-e-entrega) | Privacy by Design e by Default | 15% + 15% (vídeo) | 🟡 Em andamento |
 
 **Legenda:** ⬜ não iniciada · 🟡 em andamento · ✅ concluída · 🔴 bloqueada
 
@@ -27,11 +27,11 @@ Conferência item a item do que o enunciado exige. **Atualizar ao fechar cada et
 
 | Requisito | Status | Onde |
 |-----------|--------|------|
-| Pipeline de validação de dados (data contracts) configurado | ⬜ | Etapa 1 — `src/contracts/` |
+| Pipeline de validação de dados (data contracts) configurado | ✅ | Etapa 1 — [`src/contracts/`](../src/contracts/), relatórios em [`reports/validation/`](../reports/validation/) |
 | Scripts para simulação e detecção estatística de drift | ⬜ | Etapa 2 — `src/drift/` |
-| Dashboards ou relatórios HTML comprovando o monitoramento | ⬜ | Etapas 2 e 3 — `reports/` (versionado) |
-| Documentação consolidada de Governança no README.md | 🟡 | [README — Governança](../README.md#%EF%B8%8F-governança-e-lgpd) (estrutura pronta, vieses pendentes) |
-| Histórico de commits semântico e organizado | 🟡 | [COMMITLINT.md](COMMITLINT.md) — configurado na Etapa 0 |
+| Dashboards ou relatórios HTML comprovando o monitoramento | 🟡 | [`reports/monitoring/dashboard.html`](../reports/monitoring/dashboard.html) com os lotes do contrato; relatórios de drift na Etapa 2 |
+| Documentação consolidada de Governança no README.md | 🟡 | [README — Governança](../README.md#%EF%B8%8F-governança-e-lgpd): seções 1–6 preenchidas, inclusive a auditoria de viés; falta a revisão final da Etapa 4 |
+| Histórico de commits semântico e organizado | ✅ | [COMMITLINT.md](COMMITLINT.md) — commitlint no CI em todo PR; merge por squash com mensagem semântica |
 
 ### Bibliotecas requeridas
 
@@ -49,7 +49,7 @@ Conferência item a item do que o enunciado exige. **Atualizar ao fechar cada et
 | Separação referência × produção | Dataset de treino distinto do de análise | ✅ Split 50/50 + testes anti-vazamento por `ID` e por conteúdo |
 | Regras rígidas de qualidade | ≥ 3 regras | ✅ 8 regras críticas (C1–C8) + 4 avisos; lote corrompido bloqueado — [DATA_CONTRACTS.md](DATA_CONTRACTS.md) |
 | Relatório estatístico de mudança de distribuição | PSI ou KS | ⬜ PSI + KS configurados explicitamente |
-| Documentação de compliance | Plano de privacidade LGPD | 🟡 No README |
+| Documentação de compliance | Plano de privacidade LGPD | 🟡 No README: origem e licença, inventário de dados pessoais, base legal, privacy by design, retenção e vieses; revisão final na Etapa 4 |
 
 ### Dataset
 
@@ -201,8 +201,8 @@ a estabilidade da infraestrutura e os alertas de degradação do modelo.
 ### ✅ Critério de aceite
 
 - [ ] Dashboard mostra, por lote: status de cada estágio, volume, latência, alertas de drift e performance
-- [ ] O lote corrompido aparece como falha de ingestão no dashboard
-- [ ] `uv run mlflow ui` lista as execuções com métricas e artefatos
+- [x] O lote corrompido aparece no dashboard como bloqueado na validação (exit 2), não como sucesso
+- [x] `uv run mlflow ui` lista as execuções com métricas e artefatos
 
 ---
 
@@ -213,7 +213,7 @@ a estabilidade da infraestrutura e os alertas de degradação do modelo.
 
 ### Tarefas
 
-- [ ] Completar a seção de Governança no README com os números da auditoria de viés
+- [x] Completar a seção de Governança no README com os números da auditoria de viés (Etapa 1, ADR 13)
 - [ ] Escrever a Análise Causal no README com os resultados da ablação
 - [ ] Revisar o Model Card final
 - [ ] Atualizar a tabela de conformidade deste documento

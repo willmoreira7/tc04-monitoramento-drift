@@ -1,0 +1,122 @@
+# Publica os lotes monitorados no ambiente compartilhado do laboratorio (camada opcional).
+#
+#   dataset real ─► lotes monitorados ─► MLflow (https://mlflow.pocsarcotech.com)
+#                                    └─► Pushgateway ─► Prometheus ─► Grafana
+#
+# Separado do CI de proposito: o CI valida o codigo com MLflow local e nao pode depender
+# do laboratorio. Aqui, se o ambiente estiver fora do ar ou os secrets nao existirem, a
+# publicacao e pulada com um aviso e o job termina verde.
+#
+# Secrets do repositorio: MLFLOW_TRACKING_USERNAME e MLFLOW_TRACKING_PASSWORD.
+# Variaveis opcionais (Settings > Variables): MLFLOW_TRACKING_URI e TC04_PUSHGATEWAY_URL.
+
+name: Publicar monitoramento
+
+on:
+  push:
+    branches: [main]
+  # Em pull request, so quando este arquivo muda: valida o proprio workflow antes do merge.
+  pull_request:
+    paths: [.github/workflows/publish-monitoring.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Uma publicacao por vez: duas execucoes simultaneas disputariam os mesmos lotes.
+concurrency:
+  group: publish-monitoring
+  cancel-in-progress: false
+
+env:
+  UV_PYTHON: "3.12"
+  TC04_LOG_FORMAT: json
+  MLFLOW_DISABLE_AGENT_HINT: "1"
+  SHARED_MLFLOW_URI: ${{ vars.MLFLOW_TRACKING_URI || 'https://mlflow.pocsarcotech.com' }}
+  SHARED_PUSHGATEWAY_URL: ${{ vars.TC04_PUSHGATEWAY_URL || 'https://pushgateway.pocsarcotech.com' }}
+
+jobs:
+  publish:
+    name: Publicar lotes (dataset real)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10.1.0
+        with:
+          enable-cache: true
+
+      - name: Instalar dependencias
+        run: uv sync --group dev --locked
+
+      - name: Baixar dataset
+        run: uv run python scripts/download_data.py
+
+      - name: Preparar referencia e producao (dataset real)
+        run: uv run python scripts/prepare_data.py
+
+      # Sem secrets ou com o MLflow fora do ar, nada e publicado -- e o job nao falha.
+      - name: Verificar o ambiente compartilhado
+        id: env
+        shell: bash
+        env:
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+        run: |
+          ready=false
+          if [ -z "$MLFLOW_TRACKING_USERNAME" ] || [ -z "$MLFLOW_TRACKING_PASSWORD" ]; then
+            echo "::warning::Secrets MLFLOW_TRACKING_USERNAME/MLFLOW_TRACKING_PASSWORD ausentes: publicacao pulada."
+          else
+            code=$(curl -s -o /dev/null -m 20 -w '%{http_code}' \
+              -u "$MLFLOW_TRACKING_USERNAME:$MLFLOW_TRACKING_PASSWORD" \
+              -X POST "$SHARED_MLFLOW_URI/api/2.0/mlflow/experiments/search" \
+              -H 'Content-Type: application/json' -d '{"max_results": 1}' || true)
+            if [ "$code" = "200" ]; then
+              ready=true
+            else
+              echo "::warning::MLflow compartilhado indisponivel ou login recusado (HTTP ${code:-000}): publicacao pulada."
+            fi
+          fi
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
+
+      - name: Publicar lote valido
+        if: steps.env.outputs.ready == 'true'
+        env:
+          MLFLOW_TRACKING_URI: ${{ env.SHARED_MLFLOW_URI }}
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+          TC04_PUSHGATEWAY_URL: ${{ env.SHARED_PUSHGATEWAY_URL }}
+        run: uv run python scripts/run_monitoring_demo.py --demo valid --scenario contract_demo
+
+      # O lote corrompido PRECISA ser bloqueado: exit 2. Qualquer outro codigo falha o job.
+      - name: Publicar lote corrompido (bloqueado)
+        if: steps.env.outputs.ready == 'true'
+        shell: bash
+        env:
+          MLFLOW_TRACKING_URI: ${{ env.SHARED_MLFLOW_URI }}
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+          TC04_PUSHGATEWAY_URL: ${{ env.SHARED_PUSHGATEWAY_URL }}
+        run: |
+          set +e
+          uv run python scripts/run_monitoring_demo.py --demo corrupted --scenario contract_demo
+          code=$?
+          echo "exit code: $code"
+          test "$code" -eq 2
+
+      - name: Resumo
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "### Publicacao do monitoramento"
+            if [ "${{ steps.env.outputs.ready }}" = "true" ]; then
+              echo "- Commit: \`${GITHUB_SHA::7}\`"
+              echo "- MLflow: $SHARED_MLFLOW_URI"
+              echo "- Pushgateway: $SHARED_PUSHGATEWAY_URL"
+              echo "- Grafana: https://grafana.pocsarcotech.com/d/tc04-batch-monitoring"
+            else
+              echo "Publicacao pulada: ambiente compartilhado indisponivel ou secrets ausentes."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

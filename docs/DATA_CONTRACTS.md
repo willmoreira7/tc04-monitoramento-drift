@@ -28,7 +28,7 @@ corresponde a uma falha plausível de origem.
 
 | # | Regra | Coluna(s) | Falha que intercepta |
 |---|-------|-----------|----------------------|
-| C1 | Esquema exato: colunas esperadas, tipos corretos, nenhuma coluna extra | todas | Mudança de layout na origem; coluna não prevista (ex.: `CPF`) vazando para o pipeline |
+| C1 | Lote não vazio, esquema exato: colunas esperadas, tipos corretos, nenhuma coluna extra | todas | Mudança de layout na origem; coluna não prevista (ex.: `CPF`) vazando para o pipeline |
 | C2 | Sem nulos | todas | Falha de extração, join quebrado |
 | C3 | Sem duplicatas pela chave do cliente | chave técnica | Reprocessamento ou envio em dobro |
 | C4 | `AGE` entre 18 e 100 | `AGE` | Menor de idade não pode contratar crédito; erro de digitação |
@@ -38,6 +38,9 @@ corresponde a uma falha plausível de origem.
 | C8 | Valores pagos não negativos | `PAY_AMT*` ≥ 0 | Sinal invertido no ETL |
 
 ### Avisos — registram, não bloqueiam
+
+São avaliados **somente se não houver violação crítica**: comparações numéricas dos
+avisos não podem quebrar o diagnóstico de um lote com tipos malformados.
 
 | # | Regra | Por que é só aviso |
 |---|-------|--------------------|
@@ -75,8 +78,15 @@ contaminaria a detecção de drift logo depois. ✅ ADR 06.
 **Exit codes** de `scripts/validate_batch.py` e `scripts/prepare_data.py`: `0` aprovado ·
 `1` dados ausentes · `2` bloqueado pelo contrato.
 
-**Rótulo opcional:** a coluna `default` pode faltar (em produção o rótulo chega com
-atraso). Se vier, precisa estar em {0, 1}.
+**Quarentena:** o lote é copiado para `batch.parquet`. Se tipos mistos não forem
+representáveis pelo Arrow, o fallback é `batch.json` (orientação `table`), mantendo os
+valores apenas na quarentena local. `failures.json` e o relatório público contêm regra,
+coluna, check e contagem, sem exemplos individuais. Reexecuções do mesmo `batch_id`
+sobrescrevem a quarentena; não há histórico imutável ou expurgo automático.
+
+**Rótulo opcional no contrato:** a coluna `default` pode faltar. Se vier, precisa estar
+em {0, 1}. A simulação M01…M06, diferentemente do contrato, **exige rótulos no lote**;
+não implementa processamento assíncrono de rótulos atrasados.
 
 ---
 
@@ -110,7 +120,7 @@ uv run python scripts/validate_batch.py --demo corrupted   # bloqueado, exit 2, 
 **Critério de aceite:** cada defeito aparece no relatório de falhas com a regra correta,
 o lote termina em quarentena e nenhuma predição é gravada. ✅ A quarentena e o relatório
 estão cobertos por teste (`tests/test_contracts.py`); a garantia de que o lote bloqueado
-não gera predição é verificada de novo na Etapa 2, quando a predição entrar no pipeline.
+não gera predição é verificada em `test_blocked_batch_never_reaches_the_model`.
 
 ---
 
@@ -123,8 +133,8 @@ não gera predição é verificada de novo na Etapa 2, quando a predição entra
 | Estágio (relatório, quarentena, log, bloqueio) | [`src/pipeline/validate.py`](../src/pipeline/validate.py) |
 | Testes: lote válido passa e cada regra C1–C8 tem ao menos um caso que bloqueia | [`tests/test_contracts.py`](../tests/test_contracts.py) |
 | Relatórios versionados | `reports/validation/`: `reference.json`, `production_pool.json`, `demo_valid.json`, `demo_corrupted.json` |
-| Log da execução | stdout (structlog) hoje; `logs/pipeline.jsonl` e MLflow na Etapa 3 |
+| Log da execução | stdout e `logs/pipeline.jsonl` (structlog); anexado ao MLflow no fluxo monitorado |
 
 ---
 
-**Última atualização:** 2026-11-10
+**Última atualização:** 2026-11-17

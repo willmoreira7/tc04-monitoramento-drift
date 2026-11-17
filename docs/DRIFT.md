@@ -7,7 +7,7 @@
 > ✅ **Status: implementado (Etapa 2).** Intensidades calibradas no dado real e
 > resultados em [Resultados](#-resultados). Decisões de desenho no
 > [ADR 14](ARQUITETURA.md#-decisão-14--desenho-da-simulação-de-drift). A análise causal por
-> intervenção isolada fica para o fechamento da etapa.
+> intervenção isolada está implementada em `src/pipeline/causal.py`.
 >
 > ⚠️ **O drift é simulado.** Os lotes saem do pool de produção do próprio dataset, com
 > perturbações declaradas. Os rótulos de cada lote são revelados no próprio lote, o que
@@ -41,7 +41,7 @@ reamostragem → reetiquetagem → escala.
 
 | Lote | Narrativa | Perturbação | Esperado |
 |------|----------|-------------|----------|
-| **M01** | Mês normal | Nenhuma | **Sem drift.** Mede o falso positivo do detector |
+| **M01** | Mês normal | Nenhuma | **Sem alerta nesta execução.** Controle sem perturbação |
 | **M02** | Inflação começa | `BILL_AMT*` × 1,10 | Sem alerta: o KS acusa pelo n grande, o PSI não |
 | **M03** | Novos perfis + inflação | Peso 3 para `AGE` < 30 · `BILL_AMT*` × 1,25 | Atenção em `AGE` |
 | **M04** | Aperto de crédito | M03 + peso 4 para `PAY_0` ≥ 2 · `LIMIT_BAL` × 0,85 | Drift em `AGE`, `LIMIT_BAL` e `PAY_0`, **sem** alerta de performance |
@@ -69,20 +69,21 @@ no Evidently, coluna a coluna.
 
 | Teste | Uso | Por quê |
 |-------|-----|---------|
-| **PSI** | **Decisão** de alerta | Mede a *magnitude* da mudança; padrão de mercado em risco de crédito; independe do tamanho da amostra |
+| **PSI** | **Decisão** de alerta | Mede a *magnitude* da mudança; padrão de mercado em risco de crédito; mede efeito, mas sua estimativa também varia entre amostras |
 | **KS** | Confirmação | Estatística D mostra a maior distância entre as CDFs |
 | PSI do score | Drift de predição | Detecta mudança na saída do modelo antes dos rótulos chegarem |
 
 ### ⚠️ KS e amostras grandes
 
-Com 2.400 linhas por lote contra ~15.000 de referência, o p-valor do KS rejeita H₀ para
+Com 2.400 linhas por lote contra 4.495 de referência, o p-valor do KS rejeita H₀ para
 diferenças **sem relevância prática**. Usar só `p < 0,05` geraria alerta em M01. Por isso:
 
 - a decisão usa **PSI**, que mede tamanho de efeito
 - o KS é reportado com a **estatística D**, não só o p-valor. ⚠️ O `ValueDrift(method="ks")`
   do Evidently 0.7 devolve **apenas o p-valor** (verificado na Etapa 0); a estatística D é
   calculada pelo projeto com `scipy.stats.ks_2samp` e registrada junto
-- o lote M01 serve de calibração: se o KS dispara em M01, o limiar está errado
+- M01 é um controle desta simulação, não uma estimativa da taxa de falso positivo;
+  rejeições isoladas do KS também podem ocorrer por acaso sob ausência de drift
 
 > ℹ️ **Como o Evidently calcula o PSI.** Faixas de largura igual (regra de Sturges) sobre
 > referência e lote juntos, não decis da referência. Em colunas monetárias de cauda longa
@@ -103,7 +104,7 @@ dá a ele scores otimistas. AUC de base na janela: **0,7495**; recall de inadimp
 | PSI por feature | ≥ 0,10 | ≥ 0,25 |
 | Fração de features com drift (PSI ≥ 0,10) | ≥ 20% | ≥ 50% |
 | PSI do score | ≥ 0,10 | ≥ 0,25 |
-| Queda de AUC-ROC vs. teste da referência | ≥ 0,03 | ≥ 0,05 |
+| Queda de AUC-ROC vs. validação + teste | ≥ 0,03 | ≥ 0,05 |
 | Queda de recall de inadimplentes | ≥ 0,05 | ≥ 0,10 |
 
 Faixas de PSI seguem a convenção de mercado (< 0,10 estável; 0,10–0,25 mudança moderada;
@@ -131,8 +132,11 @@ Evidently de cada lote em [`reports/drift/`](../reports/drift/)).
 
 **O que os números dizem:**
 
-1. **O detector não gera falso positivo.** No M01 o maior PSI é 0,011 e a AUC é igual à
-   da referência (0,7496 × 0,7495).
+1. **Não houve falso alerta no controle desta execução.** No M01 o maior PSI é 0,011 e
+   a AUC é próxima à referência (0,7496 × 0,7495). Um lote/seed não demonstra ausência de
+   falsos positivos em novas amostras. Não há avaliação sistemática de taxa de falsos
+   alertas nem intervalos de confiança; os testes de reprodução verificam determinismo,
+   não substituem validação estatística externa.
 2. **KS acusa, PSI pesa.** No M02 o KS rejeita H₀ em todas as `BILL_AMT*` (p < 0,02), com D
    entre 0,039 e 0,052 e PSI de no máximo 0,016. A inflação é real e o modelo quase não sente (AUC
    0,7489). Alertar aqui seria ruído.

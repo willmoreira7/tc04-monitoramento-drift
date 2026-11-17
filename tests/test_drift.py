@@ -1,9 +1,11 @@
 """Simulacao e deteccao de drift (Etapa 2, docs/DRIFT.md)."""
 
+import hashlib
 import json
 from collections.abc import Iterator
 from pathlib import Path
 
+import mlflow
 import numpy as np
 import pandas as pd
 import pytest
@@ -178,8 +180,15 @@ def test_html_reports_are_kept_when_numbers_did_not_change(tmp_path: Path) -> No
 # --- Pipeline ---------------------------------------------------------------------------
 
 
-def test_blocked_batch_never_reaches_the_model(isolated: Path, pool: pd.DataFrame) -> None:
+@pytest.mark.parametrize("defect", ["demo", "BILL_AMT1", "PAY_0"])
+def test_blocked_batch_never_reaches_the_model(
+    isolated: Path, pool: pd.DataFrame, defect: str
+) -> None:
     corrupted = corrupt_batch(pool.head(500), load_config()["batches"]["corrupted"])
+    if defect != "demo":
+        corrupted = pool.head(500).copy()
+        corrupted[defect] = corrupted[defect].astype(object)
+        corrupted.loc[corrupted.index[0], defect] = "INVALID"
     calls = []
 
     def ingest() -> IngestedBatch:
@@ -198,6 +207,9 @@ def test_blocked_batch_never_reaches_the_model(isolated: Path, pool: pd.DataFram
     assert outcome.status == "blocked"
     assert calls == []
     assert "stage_status_prediction" not in outcome.metrics
+    assert (isolated / "q" / "bad" / "failures.json").is_file()
+    saved = json.loads((isolated / "r" / "bad.synthetic.json").read_text())
+    assert saved["status"] == "blocked"
 
 
 def test_drift_simulation_end_to_end(isolated: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -232,3 +244,42 @@ def test_drift_simulation_end_to_end(isolated: Path, monkeypatch: pytest.MonkeyP
     saved = json.loads((report / "drift_summary.synthetic.json").read_text(encoding="utf-8"))
     assert saved["source"] == "synthetic"
     assert not (report / "drift_summary.json").exists()  # sintetico nunca vira evidencia
+
+    runs = mlflow.tracking.MlflowClient().search_runs(
+        [mlflow.get_experiment_by_name("tc04-credit-scoring-monitoring").experiment_id]
+    )
+    assert len(runs) == len(batches)
+    expected_hash = hashlib.sha256((model / "model.joblib").read_bytes()).hexdigest()
+    for run in runs:
+        assert run.data.params["model_sha256"] == expected_hash
+        artifact = Path(
+            mlflow.artifacts.download_artifacts(
+                run_id=run.info.run_id, artifact_path="lineage/lineage.json"
+            )
+        )
+        assert (
+            hashlib.sha256(artifact.read_bytes()).hexdigest() == run.data.params["lineage_sha256"]
+        )
+        lineage = json.loads(artifact.read_text())
+        assert lineage["model_sha256"] == expected_hash
+        assert lineage["model_metadata"]["threshold"] == float(run.data.params["threshold"])
+        assert lineage["model_metadata"]["features"] == summary["monitored"]["features"]
+        assert lineage["pipeline_config"] == load_config()
+
+    events = [json.loads(line) for line in (isolated / "pipeline.jsonl").read_text().splitlines()]
+    completed = [e for e in events if e["event"] == "stage_finished" and e["batch_id"] == "M01"]
+    assert [e["stage"] for e in completed] == [
+        "ingestion",
+        "validation",
+        "prediction",
+        "drift",
+        "performance",
+    ]
+    assert all(e["status"] == "success" and e["pipeline_run_id"] for e in completed)
+
+    metadata_path = model / "metadata.json"
+    metadata = json.loads(metadata_path.read_text())
+    metadata["source_sha256"] = "stale"
+    metadata_path.write_text(json.dumps(metadata))
+    with pytest.raises(ValueError, match="origens diferentes"):
+        drift_stage.load_context(ref, model, report)

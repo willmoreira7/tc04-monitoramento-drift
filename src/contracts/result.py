@@ -1,6 +1,6 @@
 """Resultado da validacao de um lote contra o contrato de dados."""
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from typing import Any
 
 
@@ -13,14 +13,12 @@ class Violation:
         column: Coluna afetada; ``None`` para regras de lote inteiro.
         check: Verificacao que falhou, como descrita pelo Pandera ou pelo aviso.
         cases: Numero de ocorrencias.
-        examples: Ate tres valores distintos que falharam (nunca linhas inteiras).
     """
 
     rule: str
     column: str | None
     check: str
     cases: int
-    examples: list[Any] = field(default_factory=list)
 
 
 @dataclass(frozen=True)

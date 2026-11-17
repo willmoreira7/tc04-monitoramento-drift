@@ -16,7 +16,7 @@ def main() -> int:
     configure_logging()
     try:
         report = run_causal_ablation()
-    except FileNotFoundError as error:
+    except (FileNotFoundError, ValueError) as error:
         logger.error("causal_ablation_failed", reason=str(error))
         return 1
     logger.info(

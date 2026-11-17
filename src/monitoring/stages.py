@@ -59,8 +59,8 @@ class BatchRecorder:
     def stage(self, name: str, rows_in: int | None = None) -> Iterator[StageRecord]:
         """Mede um estagio. Excecoes sao registradas e propagadas, nunca engolidas.
 
-        Violacao de contrato vira ``blocked`` (falha esperada, ja logada pelo estagio);
-        qualquer outra excecao vira ``failed`` e e logada aqui.
+        Violacao de contrato vira ``blocked``; qualquer outra excecao vira ``failed``.
+        Todo resultado emite ``stage_finished`` com os campos operacionais, uma vez.
 
         Args:
             name: Nome do estagio (um de ``STAGES``).
@@ -81,22 +81,22 @@ class BatchRecorder:
             record.rows_in = error.result.rows
             record.rows_out = 0
             raise
-        except Exception as error:
+        except Exception:
             record.status = STATUS_FAILED
             record.rows_out = 0
-            logger.error(
-                f"stage_{name}",
-                stage=name,
-                status=STATUS_FAILED,
-                batch_id=self.batch_id,
-                rows_in=record.rows_in,
-                rows_out=0,
-                duration_s=round(time.perf_counter() - started, 3),
-                error_type=type(error).__name__,
-            )
             raise
         finally:
             record.duration_s = time.perf_counter() - started
+            log = logger.info if record.status == STATUS_SUCCESS else logger.error
+            log(
+                "stage_finished",
+                stage=name,
+                status=record.status,
+                batch_id=self.batch_id,
+                rows_in=record.rows_in,
+                rows_out=record.rows_out,
+                duration_s=round(record.duration_s, 3),
+            )
 
     @property
     def status(self) -> str:

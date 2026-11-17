@@ -9,11 +9,7 @@
       "rule": "W1",
       "column": "BILL_AMT*",
       "check": "min < -100000",
-      "cases": 2,
-      "examples": [
-        -165580,
-        -154973
-      ]
+      "cases": 2
     }
   ]
 }

@@ -54,6 +54,9 @@ def _with_null(column: str) -> Callable[[pd.DataFrame], pd.DataFrame]:
 
 
 INVALID_CASES = {
+    "empty_batch": ("C1", lambda f: f.iloc[:0]),
+    "string_bill": ("C1", lambda f: f.assign(BILL_AMT1="INVALID")),
+    "string_pay_status": ("C1", lambda f: f.assign(PAY_0="INVALID")),
     "extra_column": ("C1", lambda f: f.assign(CPF="000.000.000-00")),
     "missing_column": ("C1", lambda f: f.drop(columns="PAY_AMT3")),
     "wrong_dtype": ("C1", lambda f: f.assign(AGE=f["AGE"].astype(str))),
@@ -145,6 +148,43 @@ def test_blocked_batch_goes_to_quarantine(valid_batch: pd.DataFrame, tmp_path: P
     report = json.loads((tmp_path / "r" / "bad.synthetic.json").read_text())
     assert report["status"] == "blocked"
     assert report["rules_violated"] == CORRUPTED_RULES
+
+
+@pytest.mark.parametrize("column", ["BILL_AMT1", "PAY_0"])
+@pytest.mark.parametrize("mixed", [False, True])
+def test_malformed_types_are_reported_and_quarantined(
+    valid_batch: pd.DataFrame, tmp_path: Path, column: str, mixed: bool
+) -> None:
+    batch = valid_batch.copy()
+    batch[column] = batch[column].astype(object)
+    batch.loc[batch.index[:1] if mixed else batch.index, column] = "INVALID"
+    with pytest.raises(ContractViolationError):
+        stage.validate_stage(
+            batch, "bad", "real", len(batch), valid_batch, tmp_path / "q", tmp_path / "r"
+        )
+    report = json.loads((tmp_path / "r" / "bad.json").read_text())
+    assert report["status"] == "blocked"
+    assert "C1" in report["rules_violated"]
+    assert report["warnings"] == []  # avisos não rodam sobre tipos inválidos
+    assert (tmp_path / "q" / "bad" / "failures.json").is_file()
+    payload = tmp_path / "q" / "bad" / ("batch.json" if mixed else "batch.parquet")
+    assert payload.is_file()
+    if mixed:
+        assert json.loads(payload.read_text())["data"][0][column] == "INVALID"
+    else:
+        assert pd.read_parquet(payload)[column].eq("INVALID").all()
+
+
+def test_public_reports_never_include_individual_values(valid_batch: pd.DataFrame) -> None:
+    batch = corrupt_batch(valid_batch, load_config()["batches"]["corrupted"])
+    result = validate_batch(batch, load_config()["contract"])
+    for item in result.to_dict()["critical"]:
+        assert set(item) == {"rule", "column", "check", "cases"}
+    warning_batch = valid_batch.copy()
+    warning_batch["BILL_AMT1"] = -987654321
+    report = validate_batch(warning_batch, load_config()["contract"]).to_dict()
+    assert "987654321" not in json.dumps(report)
+    assert all(set(w) == {"rule", "column", "check", "cases"} for w in report["warnings"])
 
 
 def test_approved_batch_is_not_quarantined(valid_batch: pd.DataFrame, tmp_path: Path) -> None:

@@ -13,8 +13,6 @@ from src.contracts.result import ContractResult, Violation
 from src.contracts.schema import Contract, build_contract
 from src.contracts.soft_checks import soft_checks
 
-MAX_EXAMPLES = 3
-
 
 def validate_batch(
     frame: pd.DataFrame,
@@ -24,8 +22,8 @@ def validate_batch(
 ) -> ContractResult:
     """Valida um lote contra o contrato.
 
-    ``lazy=True`` coleta todas as violacoes, nao so a primeira: o relatorio mostra tudo o
-    que esta errado no lote de uma vez.
+    ``lazy=True`` coleta as violações críticas de uma vez. Avisos só são avaliados em
+    lotes sem falha crítica; o resultado público não contém exemplos individuais.
 
     Args:
         frame: Lote a validar.
@@ -42,7 +40,11 @@ def validate_batch(
         violations: list[Violation] = []
     except pa.errors.SchemaErrors as error:
         violations = _summarize(error.failure_cases, contract)
-    warnings = soft_checks(frame, config["warnings"], expected_rows, reference)
+    # Avisos pressupõem esquema/tipos válidos. Em lote bloqueado, preserve o diagnóstico
+    # crítico em vez de executar comparações numéricas sobre valores malformados.
+    warnings = (
+        [] if violations else soft_checks(frame, config["warnings"], expected_rows, reference)
+    )
     return ContractResult(rows=len(frame), violations=violations, warnings=warnings)
 
 
@@ -56,17 +58,6 @@ def _summarize(failures: pd.DataFrame, contract: Contract) -> list[Violation]:
                 column=name,
                 check=str(check),
                 cases=len(group),
-                examples=_examples(group["failure_case"]),
             )
         )
     return sorted(violations, key=lambda v: (v.rule, v.column or "", v.check))
-
-
-def _examples(values: pd.Series) -> list[Any]:
-    distinct = values.drop_duplicates().head(MAX_EXAMPLES)
-    return [None if pd.isna(value) else _plain(value) for value in distinct]
-
-
-def _plain(value: Any) -> Any:
-    """Converte escalares numpy para tipos nativos (serializaveis em JSON)."""
-    return value.item() if hasattr(value, "item") else value

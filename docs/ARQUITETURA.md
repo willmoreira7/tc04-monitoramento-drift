@@ -36,7 +36,7 @@ esta fase avalia é a camada em volta dela.
 | Testabilidade | ✅ Schema é objeto Python; teste com pytest direto | ⚠️ Exige montar o contexto |
 | Peso da dependência | ✅ Leve | ⚠️ Pesada |
 | Coleta de todas as falhas | ✅ `lazy=True` | ✅ |
-| Relatório HTML nativo | ❌ Gerado por nós | ✅ Data Docs |
+| Relatório HTML nativo | ❌ JSON agregado + dashboard separado | ✅ Data Docs |
 | Estabilidade da API | 🟡 Mudou o import recomendado em versões recentes | 🔴 Reescrita grande na 1.0 |
 
 **Decisão: Pandera.** O contrato é código: revisado em PR, testado com pytest e chamado
@@ -49,10 +49,10 @@ pelas mesmas funções no notebook, no script e no CI. ✅ Aceita (Etapa 1).
   (`column_in_schema`, `not_nullable`, `field_uniqueness`, `dtype`) são mapeadas para C1–C3.
   Assim cada falha chega ao relatório com a regra de [DATA_CONTRACTS.md](DATA_CONTRACTS.md).
 - **O que se perdeu:** o Data Docs. Em troca, o relatório é um **JSON agregado** por lote
-  em `reports/validation/` (regra, coluna, nº de casos e até 3 valores de exemplo, nunca
-  linhas inteiras). A proposta original previa HTML; o JSON foi escolhido porque é
+  em `reports/validation/` (regra, coluna, check e nº de casos, **sem exemplos de valores
+  individuais ou IDs**). A proposta original previa HTML; o JSON foi escolhido porque é
   determinístico (diff limpo no Git) e é a entrada natural do dashboard da Etapa 3, que
-  fará a visualização.
+  apresenta a visualização.
 - O parâmetro `name=` das checks do Pandera **não** aparece em `failure_cases`. Por isso o
   mapeamento falha → regra vive no próprio contrato, não no nome da check.
 
@@ -75,7 +75,8 @@ na Etapa 2: cada coluna recebe `ValueDrift(method="psi")` e `ValueDrift(method="
   menos sensível: no lote com aperto de crédito, o PSI de `LIMIT_BAL` deu 0,18 contra 0,27
   pelos decis (sondagem antes da implementação). Manter uma segunda implementação só para
   ganhar sensibilidade violaria a regra de uma função de PSI no projeto, e o M01 mostrou
-  que a do Evidently não gera falso positivo (maior PSI no controle: 0,011).
+  ausência de alerta nesta execução (maior PSI no controle: 0,011), não uma garantia
+  de ausência de falso positivo em outras amostras.
 - **KS: o Evidently devolve só o p-valor.** A estatística D é calculada com
   `scipy.stats.ks_2samp` e registrada junto. No M02 (inflação de 10%), o KS rejeita H₀ em
   todas as `BILL_AMT*` (p < 0,02) com D entre 0,039 e 0,052 e PSI de no máximo 0,016:
@@ -141,7 +142,7 @@ aprovação nos lotes de produção.
 **Decisão: MLflow como rastreamento + dashboard HTML consolidado e versionado.** O MLflow
 atende literalmente à Etapa 3 sem infraestrutura. O dashboard estático é o seguro contra
 a falha do TC01: se nada rodar na máquina do avaliador, a evidência está no repositório.
-Prometheus/Grafana ficam como opcional, reaproveitando a Fase 3. 🟡 Proposta.
+Prometheus/Grafana ficam como opcional, reaproveitando a Fase 3. ✅ Aceita e implementada.
 
 ---
 
@@ -256,13 +257,13 @@ comparar a performance contra a linha de base agregada falha quando a populaçã
 
 | # | Decisão | Status | Motivo principal |
 |---|---------|--------|------------------|
-| 01 | Pipeline em lote mensal | 🟡 Proposta | Monitoramento de carteira é por janela; reproduzível com um comando |
+| 01 | Pipeline em lote mensal | ✅ Aceita | Monitoramento de carteira é por janela; reproduzível com um comando |
 | 02 | Pandera para contratos; relatório JSON agregado | ✅ Aceita | Contrato como código, testável com pytest, dependência leve; JSON determinístico alimenta o dashboard |
 | 03 | Evidently com PSI (decisão) + KS (confirmação) explícitos | ✅ Aceita | Exigência do enunciado; padrão do Evidently não é PSI/KS. PSI só do Evidently (faixas de largura igual, documentado); D do KS pelo scipy |
 | 04 | Comparação enxuta: Dummy · LogReg · XGBoost padrão, sem busca de hiperparâmetros | ✅ Aceita | Modelo é o objeto monitorado, não critério de nota; escolha por evidência mínima e argumento de explicabilidade (LGPD art. 20) |
-| 05 | MLflow + dashboard HTML versionado | 🟡 Proposta | Etapa 3 sem infraestrutura; evidência visível sem rodar |
+| 05 | MLflow + dashboard HTML versionado | ✅ Aceita | Etapa 3 sem infraestrutura; evidência visível sem rodar |
 | 06 | Lote inválido bloqueado por inteiro | ✅ Aceita | Não mascarar falha de origem nem distorcer o drift |
-| 07 | Split referência × produção único, 50/50, estratificado | 🟡 Proposta | Separação exigida; M01 de controle mede falso positivo |
+| 07 | Split referência × produção único, 50/50, estratificado | ✅ Aceita | Separação exigida; M01 é controle desta execução, não estima taxa de falso positivo |
 | 08 | `SEX` e `MARRIAGE` fora das features | ✅ Aceita | LGPD art. 6º, III (necessidade) e IX (não discriminação) |
 | 09 | Dataset UCI Default of Credit Card Clients | ✅ Aceita | Licença CC BY 4.0 compatível com uso acadêmico e com a simulação de drift; ≥ 5.000 linhas; download sem conta; atributos para auditoria de viés. Home Credit descartado pelos termos de uso (ADR 12) |
 | 10 | `uv run` como único runner documentado | ✅ Aceita | Lição do TC01: comandos que dependem de ferramenta não versionada falham |
@@ -273,4 +274,4 @@ comparar a performance contra a linha de base agregada falha quando a populaçã
 
 ---
 
-**Última atualização:** 2026-11-10
+**Última atualização:** 2026-11-17

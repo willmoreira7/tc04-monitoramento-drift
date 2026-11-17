@@ -15,6 +15,8 @@ Evidencias (dataset real; as do sintetico ganham ``.synthetic`` e nao sao versio
   numa pasta temporaria e e ele que vai anexado ao MLflow.
 """
 
+import hashlib
+import io
 import json
 import shutil
 import tempfile
@@ -76,6 +78,8 @@ class DriftContext:
         source: ``real`` ou ``synthetic``.
         train: Treino da referencia, usado pelo aviso W3 do contrato.
         staging_dir: Pasta temporaria onde cada execucao grava o HTML do Evidently.
+        model_sha256: Hash dos mesmos bytes usados para carregar o modelo.
+        model_metadata: Metadados do treinamento anexados aos runs de monitoramento.
         results: Resultado de cada lote, preenchido pelos estagios.
     """
 
@@ -88,6 +92,8 @@ class DriftContext:
     source: str
     train: pd.DataFrame
     staging_dir: Path
+    model_sha256: str
+    model_metadata: dict[str, Any]
     results: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     @property
@@ -114,6 +120,23 @@ def run_drift_simulation(
         context = load_context(reference_dir, model_dir, Path(staging))
         pool = read_prepared(production_dir / "pool.parquet")
         rows = load_config()["batches"]["rows"]
+        lineage = context.staging_dir / "lineage.json"
+        write_json(
+            lineage,
+            {
+                "model_sha256": context.model_sha256,
+                "model_metadata": context.model_metadata,
+                "split_metadata": read_split_metadata(reference_dir),
+                "pipeline_config": load_config(),
+                "scenarios": load_scenarios(),
+            },
+        )
+        params = {
+            "model_sha256": context.model_sha256,
+            "lineage_sha256": hashlib.sha256(lineage.read_bytes()).hexdigest(),
+            "threshold": context.threshold,
+            "source_sha256": context.model_metadata["source_sha256"],
+        }
         outcomes = {}
         for batch_id, scenario in load_scenarios().items():
             # Mesma seed em todos os lotes (numeros aleatorios comuns, ADR 14): a diferenca
@@ -129,6 +152,8 @@ def run_drift_simulation(
                 quarantine_dir,
                 validation_report_dir,
                 log_file,
+                tracking_params=params,
+                tracking_artifacts={"lineage": lineage},
             )
         summary = build_summary(context, outcomes, reference_dir)
         summary_file = report_dir / report_name(SUMMARY_FILE, context.source)
@@ -170,6 +195,7 @@ def load_context(reference_dir: Path, model_dir: Path, staging_dir: Path) -> Dri
 
     Raises:
         FileNotFoundError: Se o modelo nao tiver sido treinado.
+        ValueError: Se modelo e referência tiverem origens diferentes.
     """
     model_file = model_dir / "model.joblib"
     if not model_file.is_file():
@@ -177,7 +203,11 @@ def load_context(reference_dir: Path, model_dir: Path, staging_dir: Path) -> Dri
             f"{model_file} nao encontrado. Rode `uv run python scripts/train_model.py`."
         )
     metadata = json.loads((model_dir / "metadata.json").read_text(encoding="utf-8"))
-    model, features = joblib.load(model_file), metadata["features"]
+    split = read_split_metadata(reference_dir)
+    if any(metadata[key] != split[key] for key in ("source", "source_sha256")):
+        raise ValueError("Modelo e referência têm origens diferentes; prepare e treine novamente.")
+    model_bytes = model_file.read_bytes()
+    model, features = joblib.load(io.BytesIO(model_bytes)), metadata["features"]
     threshold = metadata["threshold"]
     drift_config = load_config()["drift"]
     subsets = drift_config["reference_window"]
@@ -197,6 +227,8 @@ def load_context(reference_dir: Path, model_dir: Path, staging_dir: Path) -> Dri
         source=read_split_metadata(reference_dir)["source"],
         train=read_prepared(reference_dir / "train.parquet"),
         staging_dir=staging_dir,
+        model_sha256=hashlib.sha256(model_bytes).hexdigest(),
+        model_metadata=metadata,
     )
 
 

@@ -1,8 +1,7 @@
 # 🏷️ Model Card — Score de Risco de Crédito (baseline)
 
-> 🔴 **Este arquivo mora em `docs/` de propósito.** O diretório `models/` é ignorado pelo
-> Git — um Model Card gerado ali existiria em disco sem nunca chegar ao repositório (foi o
-> que custou nota no TC02). Critério de aceite: `git ls-files docs/MODEL_CARD.md`.
+> Model Card versionado em `docs/`; os artefatos treinados em `models/` ficam fora do Git.
+> A identidade do modelo dos lotes monitorados fica no MLflow (`lineage/lineage.json`).
 
 > ✅ **Estado:** performance, comparação, ablação, auditoria de viés e análise de
 > comportamento sob drift preenchidas com resultados medidos. A ablação causal isolada e
@@ -46,7 +45,7 @@ a decisão de concessão, e servir de objeto de estudo para a camada de monitora
 
 | Uso indevido | Por quê |
 |--------------|---------|
-| Decisão de crédito totalmente automática | LGPD art. 20: o titular tem direito à revisão; o score é apoio |
+| Decisão real sem mecanismo de revisão e informação ao titular | LGPD art. 20; esses mecanismos não estão implementados |
 | Aplicação a outro país, produto ou período | Dados de Taiwan, 2005, cartão de crédito — distribuição muito diferente |
 | Uso sem monitoramento de drift | É exatamente o risco que este projeto demonstra |
 
@@ -66,8 +65,8 @@ a decisão de concessão, e servir de objeto de estudo para a camada de monitora
 | Taxa de aprovação | 72,9% | Fração classificada abaixo do limiar |
 | Acurácia | — | ⚠️ Não usada: ~78% é o piso de quem prevê "ninguém fica inadimplente" |
 
-Estes são os valores de **referência** para os alertas de degradação da Etapa 2 (queda de
-AUC e de recall em relação ao teste).
+Estes números são do **teste**, não a linha de base dos alertas. A Etapa 2 compara com
+**validação + teste** (4.495 linhas): AUC 0,7495 e recall 0,581.
 
 ### Comparação entre candidatos (ADR 04 — comparação enxuta)
 
@@ -90,8 +89,8 @@ vence; empate técnico (Δ < 0,01) favorece a regressão logística.
   agora seria escolher pelo resultado.
 - O custo é de **explicabilidade**: a regressão logística teria coeficientes diretos para
   explicar uma recusa (LGPD art. 20). Com o XGBoost promovido, a explicação ao titular
-  passa a depender de importância de variáveis / contribuições por cliente — 🟡 tratado na
-  auditoria da Etapa 4.
+  exigiria contribuições por cliente e um processo de revisão. **Explicação individual
+  e atendimento ao titular não estão implementados**; o Model Card não os substitui.
 
 ---
 
@@ -168,9 +167,11 @@ referência para as razões.
 **Mitigação adotada:**
 
 - Atributos pessoais fora das features (ADR 08 e 13).
-- Auditoria por grupo reexecutada a cada treino, com `scripts/audit_model.py`.
-- Recusas sujeitas a revisão humana (LGPD art. 20).
-- 🟡 Razões por grupo acompanhadas por lote na Etapa 3 (proposta).
+- Auditoria no teste por `scripts/audit_model.py`, etapa separada executada no CI após o
+  treino; o script de treino sozinho não a dispara.
+- Revisão humana proposta para uso real, sem workflow implementado.
+- Monitoramento por grupo em cada lote **não implementado**. Regra dos 4/5 é triagem
+  descritiva, sem intervalos de confiança ou garantia de equidade.
 - **Descartado:** limiar diferente por grupo. Exigiria usar o atributo protegido na própria
   decisão.
 

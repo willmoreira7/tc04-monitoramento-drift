@@ -94,18 +94,22 @@ def run_monitored_batch(
     quarantine_dir: Path = QUARANTINE_DIR,
     report_dir: Path = VALIDATION_REPORT_DIR,
     log_file: Path = PIPELINE_LOG,
+    *,
+    tracking_params: dict[str, str | int | float] | None = None,
+    tracking_artifacts: dict[str, Path] | None = None,
 ) -> BatchOutcome:
     """Roda um lote pelos estagios e registra a execucao no MLflow (e no Pushgateway).
 
-    Nenhuma excecao escapa: lote bloqueado e falha inesperada viram ``status`` no
-    resultado, com a execucao registrada -- e o que faz o lote corrompido e a falha de
-    ingestao aparecerem no dashboard em vez de sumirem.
+    Exceções dos estágios viram ``status`` no resultado. Falhas do próprio tracking
+    podem propagar: sem MLflow disponível não há garantia de registrar a execução.
 
     Args:
         batch_id: Identificador do lote.
         scenario: Rotulo do cenario, gravado como tag da execucao.
         ingest: Estagio de ingestao: devolve o lote e o que a validacao precisa.
         downstream: Estagios depois da validacao; ``None`` para so validar.
+        tracking_params: Identidade do modelo/configuração usados, quando há modelo.
+        tracking_artifacts: Snapshots de metadados a anexar inclusive em lotes bloqueados.
         quarantine_dir: Raiz da quarentena.
         report_dir: Destino do relatorio de validacao.
         log_file: Log centralizado de onde os eventos da execucao sao lidos.
@@ -169,7 +173,8 @@ def run_monitored_batch(
         source=outcome.source,
         metrics=outcome.metrics,
         alerts=outcome.alerts,
-        artifacts={"validation": validation_report, **artifacts},
+        params=tracking_params,
+        artifacts={"validation": validation_report, **(tracking_artifacts or {}), **artifacts},
         events=read_run_events(pipeline_run_id, log_file),
         error_type=error_type,
     )

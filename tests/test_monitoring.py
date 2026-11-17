@@ -124,6 +124,28 @@ def test_recorder_marks_unexpected_error_as_failed_and_reraises() -> None:
     assert recorder.metrics()["stage_status_ingestion"] == 0.0
 
 
+@pytest.mark.parametrize("status", ["success", "blocked", "failed"])
+def test_recorder_logs_every_stage_outcome(log_file: Path, status: str) -> None:
+    recorder = BatchRecorder("batch")
+    try:
+        with recorder.stage("prediction", rows_in=10) as stage:
+            if status == "blocked":
+                raise ContractViolationError("batch", ContractResult(10, [], []))
+            if status == "failed":
+                raise RuntimeError("unavailable")
+            stage.rows_out = 10
+    except (ContractViolationError, RuntimeError):
+        pass
+    [event] = [json.loads(line) for line in log_file.read_text().splitlines()]
+    assert event["event"] == "stage_finished"
+    assert event["stage"] == "prediction"
+    assert event["status"] == status
+    assert event["rows_in"] == 10
+    assert event["rows_out"] == (10 if status == "success" else 0)
+    assert event["batch_id"] == "batch"
+    assert event["duration_s"] >= 0
+
+
 def test_recorder_rejects_unknown_stage() -> None:
     with pytest.raises(ValueError, match="desconhecido"), BatchRecorder("batch").stage("deploy"):
         pass
@@ -285,6 +307,21 @@ def test_dashboard_default_path_never_overwrites_real_evidence(
     monkeypatch.setattr("src.monitoring.dashboard.DASHBOARD_DIR", tracking / "reports")
     assert build_dashboard("real").name == "dashboard.html"
     assert build_dashboard("synthetic").name == "dashboard.synthetic.html"
+
+
+def test_dashboard_does_not_call_population_a_model_feature() -> None:
+    run = BatchRun(
+        "M03",
+        "drift",
+        "success",
+        "real",
+        0,
+        {"psi_AGE": 0.152, "psi_PAY_0": 0.01, "n_features_drifted": 0},
+        [],
+    )
+    html = render_dashboard([run], "real")
+    assert "PAY_0 (0.010)" in html
+    assert "AGE (0.152)" not in html
 
 
 def test_dashboard_escapes_dynamic_values() -> None:

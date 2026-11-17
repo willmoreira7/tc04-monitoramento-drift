@@ -1,7 +1,7 @@
-"""Limpeza da referencia: aplicada uma vez, antes do split, com cada alteracao contada.
+"""Curadoria inicial: antes do split em referência e pool, com cada alteração contada.
 
-Em producao NADA disto e aplicado: o contrato de dados rejeita os mesmos problemas
-(docs/DATA_CONTRACTS.md). Corrigir em silencio esconderia falhas de origem.
+A limpeza não é repetida nos lotes de produção: o contrato rejeita esses problemas
+(docs/DATA_CONTRACTS.md). Corrigir lotes em silêncio esconderia falhas de origem.
 """
 
 from dataclasses import asdict, dataclass

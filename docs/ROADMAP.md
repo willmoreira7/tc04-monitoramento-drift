@@ -30,7 +30,7 @@ Conferência item a item do que o enunciado exige. **Atualizar ao fechar cada et
 | Pipeline de validação de dados (data contracts) configurado | ✅ | Etapa 1 — [`src/contracts/`](../src/contracts/), relatórios em [`reports/validation/`](../reports/validation/) |
 | Scripts para simulação e detecção estatística de drift | ✅ | [`src/drift/`](../src/drift/) e [`scripts/run_drift_simulation.py`](../scripts/run_drift_simulation.py) |
 | Dashboards ou relatórios HTML comprovando o monitoramento | ✅ | HTML do Evidently por lote em [`reports/drift/`](../reports/drift/) e [`reports/monitoring/dashboard.html`](../reports/monitoring/dashboard.html) com o contrato e os lotes M01…M06 |
-| Documentação consolidada de Governança no README.md | 🟡 | [README — Governança](../README.md#%EF%B8%8F-governança-e-lgpd): seções 1–6 preenchidas, inclusive a auditoria de viés; falta a revisão final da Etapa 4 |
+| Documentação consolidada de Governança no README.md | ✅ | [README — Governança](../README.md#%EF%B8%8F-governança-e-lgpd): plano, bases legais, retenção proposta e limites de implementação explícitos |
 | Histórico de commits semântico e organizado | ✅ | [COMMITLINT.md](COMMITLINT.md) — commitlint no CI em todo PR; merge por squash com mensagem semântica |
 
 ### Bibliotecas requeridas
@@ -49,7 +49,7 @@ Conferência item a item do que o enunciado exige. **Atualizar ao fechar cada et
 | Separação referência × produção | Dataset de treino distinto do de análise | ✅ Split 50/50 + testes anti-vazamento por `ID` e por conteúdo |
 | Regras rígidas de qualidade | ≥ 3 regras | ✅ 8 regras críticas (C1–C8) + 4 avisos; lote corrompido bloqueado — [DATA_CONTRACTS.md](DATA_CONTRACTS.md) |
 | Relatório estatístico de mudança de distribuição | PSI ou KS | ✅ PSI + KS configurados explicitamente — [DRIFT.md](DRIFT.md#-resultados) |
-| Documentação de compliance | Plano de privacidade LGPD | 🟡 No README: origem e licença, inventário de dados pessoais, base legal, privacy by design, retenção e vieses; revisão final na Etapa 4 |
+| Documentação de compliance | Plano de privacidade LGPD | ✅ Plano no README; não equivale a certificação de conformidade ou operação real |
 
 ### Dataset
 
@@ -138,7 +138,7 @@ Script de validação de dados operante + modelo baseline treinado.
 ### ✅ Critério de aceite
 
 - [x] Lote corrompido é rejeitado e vai para quarentena · "nenhuma predição" provado por teste na Etapa 2 (`test_blocked_batch_never_reaches_the_model`)
-- [x] Cada regra crítica tem teste com caso válido e inválido (16 casos inválidos cobrindo C1–C8)
+- [x] Cada regra crítica tem teste com caso válido e inválido (incluindo tipos malformados e lote vazio, cobrindo C1–C8)
 - [x] Teste automatizado prova que nenhuma linha do pool de produção está no treino (por `ID` e por conteúdo)
 - [x] Modelo promovido supera o Dummy e atende ao gate declarado (AUC val. 0,7622 ≥ 0,70)
 - [x] Seção "Como Executar" do README atualizada e executada num clone limpo
@@ -169,7 +169,7 @@ Relatório de drift (HTML do Evidently) apontando claramente as variáveis degra
 ### ✅ Critério de aceite
 
 - [x] ≥ 2 variáveis importantes com drift detectado nos lotes perturbados (`LIMIT_BAL` e `PAY_0` no M04 e no M06)
-- [x] M01 sem drift (falso positivo = 0)
+- [x] M01 sem alerta nesta execução; não estima taxa de falso positivo em novas amostras
 - [x] Concept drift (M05) detectado pela performance mesmo sem drift nas features (AUC −0,067)
 - [x] HTML de cada lote em `reports/drift/`, versionado
 - ⚠️ M06 não disparou o alerta de performance que o desenho previa: a mudança de população esconde o concept drift. Expectativa revista para o medido, hipótese original registrada, cenário não recalibrado ([DRIFT.md](DRIFT.md#-resultados))
@@ -222,6 +222,11 @@ a estabilidade da infraestrutura e os alertas de degradação do modelo.
 - [x] Escrever a Análise Causal no README com os resultados da ablação
 - [x] Revisar o Model Card final com resultados de drift e limitações
 - [x] Atualizar a tabela de conformidade deste documento
+- [x] Revisão de confiabilidade: tipos malformados e lote vazio bloqueados; relatórios sem
+  exemplos individuais; identidade do modelo por lote; logs uniformes; governança e
+  documentação alinhadas ao escopo entregue
+- [ ] Responsáveis pelo laboratório confirmarem revogação/rotação das credenciais
+  históricas (ação externa, não comprovada pelo repositório)
 - [x] Executar comandos documentados em clone limpo Linux/CI; compatibilidade Windows não declarada
 - [ ] Roteirizar, ensaiar (≤ 5 min cronometrados) e gravar o vídeo STAR
 - [ ] Publicar o link do vídeo no README
@@ -232,8 +237,8 @@ Documentação completa de Governança e Causalidade no README + link do vídeo.
 
 ### ✅ Critério de aceite
 
-- [ ] Nenhum placeholder 🟡 restante no README e no Model Card
-- [ ] `git ls-files docs/MODEL_CARD.md reports/` lista os entregáveis
+- [x] Documentação distingue implementação, limitações e salvaguardas propostas; vídeo permanece pendente
+- [x] `git ls-files docs/MODEL_CARD.md reports/` lista os entregáveis
 - [ ] Vídeo ≤ 5:00
 
 ---
@@ -244,7 +249,7 @@ Documentação completa de Governança e Causalidade no README + link do vídeo.
 |-------|---------|-----------|
 | Avaliador não consegue rodar o projeto (TC01) | 🔴 Alto | Só `uv run`; README executado em clone limpo a cada etapa; evidências versionadas |
 | Model Card ausente do repositório (TC02) | 🟡 Médio | Mora em `docs/`; checado com `git ls-files` |
-| KS com n grande acusa drift em diferenças irrelevantes | 🟡 Médio | PSI como decisão, KS como confirmação + estatística D; M01 de controle mede falso positivo |
+| KS com n grande acusa drift em diferenças irrelevantes | 🟡 Médio | PSI como decisão, KS e estatística D informativos; M01 é controle de uma execução |
 | Stattest padrão do Evidently não é PSI/KS | 🟡 Médio | Configurar `stattest` por coluna explicitamente |
 | API do Evidently/Pandera mudou entre versões | 🟡 Médio | Versão travada no `uv.lock` e anotada no CLAUDE.md |
 | Fonte do dataset (UCI) fora do ar no CI | 🟡 Médio | Cache no CI + fallback sintético documentado |

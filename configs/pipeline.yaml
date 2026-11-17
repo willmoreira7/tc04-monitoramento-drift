@@ -18,7 +18,8 @@ dataset:
     UCI Machine Learning Repository. https://doi.org/10.24432/C55S3H
 
 cleaning:
-  # Aplicada SO na referencia, antes do split. Em producao o contrato rejeita esses codigos.
+  # Curadoria inicial do dataset antes do split (referência e pool simulado). Não é
+  # aplicada aos lotes recebidos depois: em produção o contrato rejeita esses códigos.
   # Evidencias: notebooks/01_eda.ipynb
   education_other_codes: [0, 5, 6]   # fora do dicionario; inadimplencia proxima do codigo 4
   education_other_value: 4

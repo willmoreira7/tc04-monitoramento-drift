@@ -70,7 +70,12 @@ def build_contract(config: dict[str, Any]) -> Contract:
         # O rotulo chega com atraso em producao: o lote pode vir sem ele.
         TARGET_COLUMN: pa.Column(INTEGER, domain[TARGET_COLUMN][1], required=False),
     }
-    schema = pa.DataFrameSchema(columns, strict=True, ordered=False)
+    schema = pa.DataFrameSchema(
+        columns,
+        checks=pa.Check(lambda frame: not frame.empty, name="non_empty_batch"),
+        strict=True,
+        ordered=False,
+    )
     return Contract(schema, {name: rule for name, (rule, _) in domain.items()})
 
 

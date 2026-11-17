@@ -239,9 +239,12 @@ mudança de perfil, mas não entra na fração de features com drift.
   o modelo quase não sente (AUC 0,7489 contra 0,7496 no controle).
 
 **Resultado** ([`reports/drift/drift_summary.json`](../reports/drift/drift_summary.json)):
-cinco dos seis lotes fizeram o que o cenário declarava. O M06 (crise: aperto de crédito e
-concept drift juntos) **não** disparou alerta de performance: a AUC agregada caiu só 0,021.
-Não foi recalibrado. A carteira da crise tem o dobro de atrasados, que o modelo ordena com
+cinco dos seis lotes fizeram o que o desenho previa. O M06 (crise: aperto de crédito e
+concept drift juntos) **não** disparou o alerta de performance previsto: a AUC agregada caiu
+só 0,021. Não foi recalibrado para forçar o alerta; a expectativa do YAML foi revista para o
+comportamento medido, com a hipótese original registrada no comentário, e o teste
+`test_versioned_evidence_meets_every_declared_expectation` exige que a evidência versionada
+cumpra todas as expectativas. A carteira da crise tem o dobro de atrasados, que o modelo ordena com
 facilidade, e isso esconde a degradação causada pelo concept drift. Contra a mesma carteira
 sem o concept drift (M04, AUC 0,793), a perda é de 0,064. É a principal lição da Etapa 2:
 comparar a performance contra a linha de base agregada falha quando a população muda (ver

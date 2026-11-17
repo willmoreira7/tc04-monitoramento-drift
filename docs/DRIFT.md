@@ -46,7 +46,7 @@ reamostragem → reetiquetagem → escala.
 | **M03** | Novos perfis + inflação | Peso 3 para `AGE` < 30 · `BILL_AMT*` × 1,25 | Atenção em `AGE` |
 | **M04** | Aperto de crédito | M03 + peso 4 para `PAY_0` ≥ 2 · `LIMIT_BAL` × 0,85 | Drift em `AGE`, `LIMIT_BAL` e `PAY_0`, **sem** alerta de performance |
 | **M05** | Concept drift puro | Features como M01; bons pagadores em dia com utilização ≥ 0,5 inadimplem com chance de 30% | **Sem drift de features**, queda de AUC/recall |
-| **M06** | Crise | M04 + reetiquetagem de M05 | Drift de features **e** alerta de performance |
+| **M06** | Crise | M04 + reetiquetagem de M05 | Drift de features; **sem** alerta de performance — a hipótese do desenho era o alerta, ver [Resultados](#-resultados) |
 
 Mais um **lote corrompido** (ver [DATA_CONTRACTS.md](DATA_CONTRACTS.md)), barrado antes
 de chegar aqui.
@@ -127,7 +127,7 @@ Evidently de cada lote em [`reports/drift/`](../reports/drift/)).
 | **M03** | `AGE` 0,152 | 0,011 | 0,7654 | 0,622 | 0,714 | atenção: `AGE` | ✅ |
 | **M04** | `LIMIT_BAL` 0,227 · `PAY_0` 0,213 · `AGE` 0,193 | 0,128 | 0,7930 | 0,742 | 0,576 | atenção: 3 colunas e score | ✅ |
 | **M05** | nenhuma (maior: 0,011) | 0,009 | 0,6821 | 0,462 | 0,733 | **crítico: AUC e recall** | ✅ |
-| **M06** | `LIMIT_BAL` 0,227 · `PAY_0` 0,213 · `AGE` 0,193 | 0,128 | 0,7286 | 0,638 | 0,576 | atenção: 3 colunas e score | ❌ sem alerta de performance |
+| **M06** | `LIMIT_BAL` 0,227 · `PAY_0` 0,213 · `AGE` 0,193 | 0,128 | 0,7286 | 0,638 | 0,576 | atenção: 3 colunas e score | ⚠️ hipótese do desenho (alerta de performance) não confirmada; expectativa revista |
 
 **O que os números dizem:**
 
@@ -145,10 +145,13 @@ Evidently de cada lote em [`reports/drift/`](../reports/drift/)).
 5. **A mudança de população esconde o concept drift.** No M06 o concept drift do M05
    acontece numa carteira como a do M04. Contra a referência, a AUC cai só 0,021 e o recall
    **sobe**: nenhum alerta de performance. Contra a mesma carteira sem o concept drift
-   (M04), a perda é de 0,064 de AUC e 0,104 de recall. A expectativa do cenário não foi
-   atendida e o cenário **não foi recalibrado**: comparar a performance com a linha de base
-   agregada falha justamente na crise. A correção — comparar com a performance esperada
-   para a carteira atual — entra na análise causal.
+   (M04), a perda é de 0,064 de AUC e 0,104 de recall. O desenho previa alerta de
+   performance aqui; a medição mostrou que não há, e o cenário **não foi recalibrado** para
+   forçá-lo. A expectativa no YAML foi revista para o comportamento medido, com a hipótese
+   original registrada ao lado, e um teste exige que a evidência versionada cumpra todas as
+   expectativas. Comparar a performance com a linha de base agregada falha justamente na
+   crise; a correção — comparar com a performance esperada para a carteira atual — entra
+   na análise causal.
 
 > ℹ️ Com uma seed por lote, a primeira versão acusou queda de AUC no M02 por ruído de
 > amostragem (desvio-padrão de 0,012 em 2.400 linhas). Daí o mesmo sorteio em todos os

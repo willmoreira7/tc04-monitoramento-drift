@@ -172,7 +172,11 @@ Relatório de drift (HTML do Evidently) apontando claramente as variáveis degra
 - [x] M01 sem drift (falso positivo = 0)
 - [x] Concept drift (M05) detectado pela performance mesmo sem drift nas features (AUC −0,067)
 - [x] HTML de cada lote em `reports/drift/`, versionado
-- ⚠️ M06 não disparou alerta de performance: a mudança de população esconde o concept drift. Documentado, não recalibrado ([DRIFT.md](DRIFT.md#-resultados))
+- ⚠️ M06 não disparou o alerta de performance que o desenho previa: a mudança de população esconde o concept drift. Expectativa revista para o medido, hipótese original registrada, cenário não recalibrado ([DRIFT.md](DRIFT.md#-resultados))
+- [x] Teste exige que a evidência real versionada cumpra a expectativa de cada lote
+
+> 🟡 **A Etapa 2 não está encerrada.** Faltam a ablação causal, o notebook
+> `03_drift_analysis.ipynb` e a seção de Análise Causal no README (próximo PR).
 
 ---
 

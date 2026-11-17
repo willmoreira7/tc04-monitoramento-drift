@@ -41,6 +41,11 @@ def load_scenarios() -> dict[str, Any]:
     return load_config(DRIFT_SCENARIOS_CONFIG)["batches"]
 
 
+def load_causal_interventions() -> dict[str, Any]:
+    """Intervencoes isoladas para analise causal, declaradas no YAML de drift."""
+    return load_config(DRIFT_SCENARIOS_CONFIG)["causal_interventions"]
+
+
 def get_seed() -> int:
     """Retorna a seed global declarada em ``configs/pipeline.yaml``."""
     return int(load_config()["seed"])

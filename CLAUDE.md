@@ -97,7 +97,8 @@ uv run python scripts/run_monitoring_demo.py --demo valid      # lote monitorado
 uv run python scripts/run_monitoring_demo.py --demo corrupted  # idem, bloqueado (exit 2)
 uv run python scripts/build_monitoring_dashboard.py    # dashboard HTML (--source synthetic)
 uv run python scripts/run_drift_simulation.py          # lotes M01…M06: drift PSI/KS + performance
-uv run mlflow ui                                       # execucoes locais (mlflow.db na raiz)
+uv run python scripts/run_causal_ablation.py           # intervencoes isoladas e interacao M04/M06
+uv run mlflow ui --backend-store-uri sqlite:///mlflow.db  # execucoes locais (mlflow.db na raiz)
 uv run jupyter lab notebooks/                          # notebooks (versionados com saídas)
 uv run pytest                                          # testes (sem rede)
 uv run ruff check . && uv run ruff format --check .    # lint

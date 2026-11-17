@@ -92,6 +92,16 @@ synthetic:
   # Valida o pipeline; NAO reproduz as metricas documentadas.
   default_rows: 30000
 
+drift:
+  # docs/DRIFT.md, ADR 14. Cenarios dos lotes em configs/drift_scenarios.yaml.
+  # Janela de referencia: validacao + teste. O score do treino e otimista (o modelo ja viu
+  # aquelas linhas), entao o PSI do score e a AUC de base so valem fora da amostra; as
+  # features usam a mesma janela para que tudo seja comparado contra a mesma populacao.
+  reference_window: [validation, test]
+  # Monitoradas alem das features do modelo: a idade nao e feature (ADR 13), mas mostra
+  # a mudanca de perfil da carteira. Nao entra na fracao de features com drift.
+  population_columns: [AGE]
+
 monitoring:
   # docs/MONITORING.md. Limiares dos alertas avaliados a cada lote.
   # O alerta de volume reusa contract.warnings.volume_tolerance (mesma regra, um so lugar).

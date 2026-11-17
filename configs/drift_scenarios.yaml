@@ -1,0 +1,82 @@
+# Cenarios de drift dos lotes M01..M06 (docs/DRIFT.md, ADR 14). Nenhuma perturbacao vive
+# no codigo: src/drift/scenarios.py so interpreta este arquivo.
+#
+# Cada lote e uma amostra de batches.rows linhas do pool de producao (sem reposicao dentro
+# do lote). Todos os lotes usam a seed global (numeros aleatorios comuns): a diferenca entre
+# eles vem so das perturbacoes, nao do sorteio. Com seeds independentes, o ruido de uma
+# amostra de 2.400 linhas (desvio-padrao de 0,012 na AUC) fez o M02 acusar queda de AUC
+# sem nenhuma causa. As perturbacoes sao aplicadas nesta ordem:
+#   1. resample  - pesos de amostragem: mais clientes de um perfil (covariate shift)
+#   2. relabel   - inadimplencia nova num perfil, features intactas (concept drift)
+#   3. scale     - valores nominais multiplicados, risco real igual (drift nominal)
+# O relabel vem antes do scale para olhar o cliente como ele era, antes da inflacao.
+#
+# expected: o que o lote deveria mostrar no dataset real. Fica registrado no resumo
+# (reports/drift/drift_summary.json) ao lado do que foi observado.
+#   drifted: colunas monitoradas com PSI >= atencao (a lista inteira, nao um minimo)
+#   performance_alert: queda de AUC ou de recall acima da atencao
+
+bills: &bills [BILL_AMT1, BILL_AMT2, BILL_AMT3, BILL_AMT4, BILL_AMT5, BILL_AMT6]
+
+batches:
+  M01:
+    narrative: Mes normal - lote de controle, sem perturbacao
+    expected:
+      drifted: []
+      performance_alert: false
+
+  M02:
+    narrative: Inflacao comeca - faturas 10% maiores, mesmo risco
+    scale:
+      - {columns: *bills, factor: 1.10}
+    expected:
+      drifted: []                # efeito pequeno: o KS acusa pelo n grande, o PSI nao
+      performance_alert: false
+
+  M03:
+    narrative: Novos perfis - mais clientes jovens, inflacao acumulada de 25%
+    resample:
+      - {column: AGE, below: 30, weight: 3.0}
+    scale:
+      - {columns: *bills, factor: 1.25}
+    expected:
+      drifted: [AGE]
+      performance_alert: false
+
+  M04:
+    narrative: Aperto de credito - M03 com mais atrasos e limites 15% menores
+    resample:
+      - {column: AGE, below: 30, weight: 3.0}
+      - {column: PAY_0, at_least: 2, weight: 4.0}   # calibrado: peso 3 deixa o PSI em 0,09-0,14
+    scale:
+      - {columns: *bills, factor: 1.25}
+      - {columns: [LIMIT_BAL], factor: 0.85}
+    expected:
+      drifted: [AGE, LIMIT_BAL, PAY_0]
+      performance_alert: false   # drift sem degradacao: o modelo separa melhor os atrasados
+
+  M05:
+    narrative: Concept drift - clientes em dia e endividados passam a inadimplir
+    relabel:
+      min_utilization: 0.5       # BILL_AMT1 / LIMIT_BAL
+      max_pay_status: 0          # PAY_0 <= 0: em dia no ultimo mes
+      probability: 0.3           # chance de um bom pagador desse perfil virar inadimplente
+    expected:
+      drifted: []                # features e score intactos: degradacao silenciosa
+      performance_alert: true
+
+  M06:
+    narrative: Crise - aperto de credito (M04) e concept drift (M05) juntos
+    resample:
+      - {column: AGE, below: 30, weight: 3.0}
+      - {column: PAY_0, at_least: 2, weight: 4.0}   # calibrado: peso 3 deixa o PSI em 0,09-0,14
+    relabel:
+      min_utilization: 0.5
+      max_pay_status: 0
+      probability: 0.3
+    scale:
+      - {columns: *bills, factor: 1.25}
+      - {columns: [LIMIT_BAL], factor: 0.85}
+    expected:
+      drifted: [AGE, LIMIT_BAL, PAY_0]
+      performance_alert: true

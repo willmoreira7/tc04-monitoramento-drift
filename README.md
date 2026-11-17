@@ -371,9 +371,11 @@ TC04_PUSHGATEWAY_URL=https://pushgateway.pocsarcotech.com uv run python scripts/
   [`monitoring/grafana/tc04-batch-monitoring.json`](monitoring/grafana/tc04-batch-monitoring.json).
 - Para registrar os lotes no MLflow compartilhado em vez do `mlflow.db` local, ver
   [docs/MONITORING.md](docs/MONITORING.md#-mlflow-compartilhado-opcional).
-- A cada merge na `main`, o workflow
+- A cada merge na `main` (ou por disparo manual), o workflow
   [`publish-monitoring.yml`](.github/workflows/publish-monitoring.yml) publica os lotes do
   dataset real nesse ambiente. É separado do CI: ambiente fora do ar não bloqueia PR.
+  Configuração, gatilhos e leitura do resultado em
+  [docs/MONITORING.md](docs/MONITORING.md#-publicação-automática-workflow-opcional).
 
 > ⚠️ Credenciais publicadas intencionalmente: ambiente de laboratório acadêmico
 > (pós-graduação), como no TC03. É a única exceção à regra de não versionar credenciais

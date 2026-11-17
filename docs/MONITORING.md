@@ -184,20 +184,83 @@ uv run python scripts/run_monitoring_demo.py --demo valid
 - Login `admin`; a senha acima é a do secret `mlflow-admin` do cluster, publicada de
   propósito (laboratório acadêmico) — a mesma tabela está no
   [README](../README.md#-ambiente-publicado-opcional).
-- **Publicação automática:** o workflow
-  [`publish-monitoring.yml`](../.github/workflows/publish-monitoring.yml) roda os lotes com
-  o dataset real e os registra no MLflow e no Pushgateway a cada merge na `main` (ou por
-  disparo manual em *Actions → Publicar monitoramento → Run workflow*). Usa os secrets
-  `MLFLOW_TRACKING_USERNAME` e `MLFLOW_TRACKING_PASSWORD` do repositório. É separado do
-  CI de propósito: se o ambiente estiver fora do ar ou os secrets não existirem, a
-  publicação é pulada com um aviso e nenhum PR fica bloqueado. Os lotes M01…M06 entram
-  nele com a Etapa 2.
+- **Publicação automática:** um workflow do GitHub Actions envia os lotes para cá sem
+  ninguém rodar nada à mão — ver [Publicação automática](#-publicação-automática-workflow-opcional).
 - Instalação versionada em
   [`monitoring/helm/mlflow-values.yaml`](../monitoring/helm/mlflow-values.yaml): SQLite e
   artefatos num volume de 10 GiB, uma réplica, login básico do próprio MLflow, mesmo ALB
   do Grafana. É ambiente de demonstração: sem alta disponibilidade nem backup.
 - Servidor 3.16.0 e cliente 3.18.0 (travado no `uv.lock`): testado com os lotes de
   demonstração.
+
+---
+
+## 🚀 Publicação automática (workflow opcional)
+
+[`publish-monitoring.yml`](../.github/workflows/publish-monitoring.yml) roda os lotes com o
+**dataset real** e os registra no MLflow e no Pushgateway compartilhados. Com ele, o que
+aparece no MLflow e no Grafana vem do pipeline, não da máquina de alguém.
+
+É **separado do CI** (`ci.yml`) de propósito: o CI valida o código com MLflow local e não
+pode depender do laboratório. Este workflow nunca bloqueia um PR.
+
+### Quando roda
+
+| Gatilho | Quando |
+|---------|--------|
+| `push` na `main` | A cada merge |
+| Manual | *Actions → Publicar monitoramento → Run workflow*, ou `gh workflow run publish-monitoring.yml` |
+| `pull_request` | Só em PRs que alteram o próprio `publish-monitoring.yml` (valida o workflow antes do merge) |
+
+> ℹ️ O disparo manual só fica disponível depois que o arquivo estiver na `main`.
+
+### Configuração (uma vez)
+
+Em *Settings → Secrets and variables → Actions* do repositório (exige permissão de
+administrador), ou pelo terminal:
+
+```bash
+gh secret set MLFLOW_TRACKING_USERNAME --body admin
+gh secret set MLFLOW_TRACKING_PASSWORD --body <senha do MLflow>
+```
+
+| Nome | Tipo | Obrigatório | Padrão |
+|------|------|-------------|--------|
+| `MLFLOW_TRACKING_USERNAME` | secret | ✅ | — |
+| `MLFLOW_TRACKING_PASSWORD` | secret | ✅ | — |
+| `MLFLOW_TRACKING_URI` | variable | ⚪ | `https://mlflow.pocsarcotech.com` |
+| `TC04_PUSHGATEWAY_URL` | variable | ⚪ | `https://pushgateway.pocsarcotech.com` |
+
+A senha é a do [Ambiente Publicado](../README.md#-ambiente-publicado-opcional). As duas
+variáveis só precisam ser criadas se o ambiente mudar de endereço.
+
+### O que ele faz
+
+1. Baixa o dataset real e prepara referência e produção (mesmos comandos do README).
+2. **Verifica o ambiente:** os secrets existem e o MLflow responde com o login?
+3. Publica o lote válido (`exit 0`) e o lote corrompido, que **precisa** ser bloqueado
+   (`exit 2`); qualquer outro código falha o job.
+4. Escreve um resumo com os links na página da execução.
+
+### Como ler o resultado
+
+| Resultado | Significado | O que fazer |
+|-----------|-------------|-------------|
+| ✅ Verde, passos "Publicar lote…" executados | Publicou | Conferir no [MLflow](https://mlflow.pocsarcotech.com) (experimento `tc04-credit-scoring-monitoring`) e no [Grafana](https://grafana.pocsarcotech.com/d/tc04-batch-monitoring) |
+| ✅ Verde, passos "Publicar lote…" pulados, com aviso *"Secrets … ausentes"* | Secrets não cadastrados | Cadastrar os dois secrets e rodar de novo |
+| ✅ Verde, pulados, com aviso *"MLflow compartilhado indisponivel ou login recusado (HTTP …)"* | Ambiente fora do ar (`000`, `503`) ou senha errada (`401`) | Verificar o cluster ou corrigir o secret |
+| ❌ Vermelho em "Publicar lote corrompido" | O lote corrompido **não** foi bloqueado | É regressão do contrato de dados: investigar antes de qualquer merge |
+| ❌ Vermelho em "Baixar dataset" | UCI fora do ar ou SHA256 diferente | Rodar de novo mais tarde |
+
+O aviso aparece na aba *Summary* da execução e no passo "Verificar o ambiente compartilhado".
+Pushgateway fora do ar não falha nada: o lote loga `pushgateway_unreachable` e segue.
+
+### Como acrescentar lotes
+
+Cada lote é um passo `run:` com as mesmas quatro variáveis de ambiente dos passos
+"Publicar lote…". Os lotes M01…M06 da Etapa 2 entram assim, depois do lote válido. Como a
+execução mais recente de cada `batch_id` substitui a anterior no Grafana e no dashboard,
+publicar de novo não duplica nada lá; no MLflow fica o histórico completo.
 
 ---
 

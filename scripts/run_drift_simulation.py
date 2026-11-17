@@ -29,7 +29,7 @@ def main() -> int:
     configure_logging()
     try:
         summary = run_drift_simulation()
-    except FileNotFoundError as error:
+    except (FileNotFoundError, ValueError) as error:
         logger.error("drift_simulation_failed", reason=str(error))
         return 1
     for batch_id, batch in summary["batches"].items():

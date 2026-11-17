@@ -48,8 +48,7 @@ def _negative_bills(frame: pd.DataFrame, floor: float) -> Violation | None:
     below = frame[columns].min(axis=1) < floor
     if not below.any():
         return None
-    examples = sorted(frame.loc[below, columns].min(axis=1).astype(int).unique().tolist())[:3]
-    return Violation("W1", "BILL_AMT*", f"min < {floor}", int(below.sum()), examples)
+    return Violation("W1", "BILL_AMT*", f"min < {floor}", int(below.sum()))
 
 
 def _volume(frame: pd.DataFrame, expected: int | None, tolerance: float) -> Violation | None:
@@ -69,9 +68,7 @@ def _late_payments(
         return None
     check = f"share(PAY_0 >= 2) > {max_ratio}x reference"
     late = int((frame[LATE_PAYMENT_COLUMN] >= LATE_PAYMENT_STATUS).sum())
-    return Violation(
-        "W3", LATE_PAYMENT_COLUMN, check, late, [round(batch_rate, 4), round(reference_rate, 4)]
-    )
+    return Violation("W3", LATE_PAYMENT_COLUMN, check, late)
 
 
 def _identical_profiles(frame: pd.DataFrame) -> Violation | None:

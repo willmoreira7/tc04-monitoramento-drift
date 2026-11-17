@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from html import escape
 from pathlib import Path
 
-from src.config import REPORTS_DIR
+from src.config import REPORTS_DIR, load_config
 from src.monitoring.alerts import SEVERITY_CRITICAL
 from src.monitoring.stages import STAGES, STATUS_BLOCKED, STATUS_FAILED, STATUS_VALUES
 from src.monitoring.tracking import SOURCE_UNKNOWN, BatchRun, load_batch_runs
@@ -141,11 +141,12 @@ def _model_table(batches: list[BatchRun]) -> str:
         "Recall inadimplentes",
     ]
     rows = []
+    population = set(load_config()["drift"]["population_columns"])
     for run in batches:
         feature_psi = {
             key.removeprefix("psi_"): value
             for key, value in run.metrics.items()
-            if key.startswith("psi_") and key != "psi_score"
+            if key.startswith("psi_") and key.removeprefix("psi_") not in population | {"score"}
         }
         worst = max(feature_psi, key=feature_psi.get, default=None)
         worst_cell = (

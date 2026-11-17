@@ -1,6 +1,6 @@
 """Estagio de validacao: contrato -> relatorio -> (quarentena + bloqueio) ou liberacao.
 
-Lote reprovado NAO chega ao modelo: vai inteiro para ``data/quarantine/<batch_id>/``,
+Lote reprovado NAO chega ao modelo: é copiado para ``data/quarantine/<batch_id>/``,
 gera log ``status=blocked`` com alerta critico e levanta ``ContractViolationError`` (o
 script traduz em exit code != 0). O lote inteiro e bloqueado, nao so as linhas invalidas:
 filtrar em silencio esconderia a falha de origem e distorceria a deteccao de drift.
@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+from pyarrow import ArrowInvalid, ArrowTypeError
 
 from src.config import PRODUCTION_DIR, QUARANTINE_DIR, REFERENCE_DIR, REPORTS_DIR, load_config
 from src.contracts.corruption import corrupt_batch
@@ -161,7 +162,17 @@ def _report(batch_id: str, result: ContractResult) -> dict[str, Any]:
 
 def _quarantine(batch: pd.DataFrame, result: ContractResult, target: Path) -> None:
     target.mkdir(parents=True, exist_ok=True)
-    batch.to_parquet(target / QUARANTINE_BATCH_FILE, index=False)
+    parquet = target / QUARANTINE_BATCH_FILE
+    fallback = target / "batch.json"
+    try:
+        batch.to_parquet(parquet, index=False)
+    except (ArrowInvalid, ArrowTypeError):
+        # Arrow não representa colunas mistas (ex.: inteiro + texto inválido). Preserve
+        # os valores no armazenamento local restrito, nunca no relatório público.
+        batch.to_json(fallback, orient="table", index=False)
+        parquet.unlink(missing_ok=True)
+    else:
+        fallback.unlink(missing_ok=True)
     write_json(target / QUARANTINE_REPORT_FILE, result.to_dict())
 
 

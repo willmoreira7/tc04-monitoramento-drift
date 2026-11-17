@@ -37,8 +37,18 @@
                       reports/monitoring/dashboard.html (versionado)
 ```
 
-- **Uma execução MLflow por lote**, com tags `batch_id` e `scenario`. A interface do MLflow
-  plota qualquer métrica ao longo dos lotes — é a série temporal da degradação.
+- **Uma execução MLflow por lote**, com tags `batch_id` e `scenario`, quando o tracking
+  está disponível. A interface permite comparar métricas entre execuções; os meses são
+  simulados, não uma série temporal independente observada em produção.
+- Em M01…M06, parâmetros `model_sha256`, `threshold`, `source_sha256` e `lineage_sha256`
+  identificam o artefato carregado e o snapshot `lineage/lineage.json` anexado ao run.
+  Ele contém metadados do modelo, features, split e configurações efetivamente lidas;
+  nenhuma linha de cliente. O hash é calculado sobre os mesmos bytes carregados pelo
+  modelo. Não há registro de predições individuais nem preservação automática de cada
+  modelo treinado: o hash identifica, mas não recupera um `model.joblib` sobrescrito.
+- Cada estágio monitorado emite `stage_finished` com status, volumes e latência, inclusive
+  em bloqueio/falha. Eventos específicos de ingestão e contrato continuam como diagnóstico;
+  não devem ser somados a `stage_finished` para contar execuções.
 - **Dashboard HTML estático** consolidado a partir das execuções. Existe para o avaliador
   ver o resultado **sem subir nenhum serviço**.
 - ⚪ Opcional: as mesmas métricas enviadas a um Pushgateway e exibidas no Grafana da
@@ -74,7 +84,9 @@ uv run mlflow ui --backend-store-uri sqlite:///mlflow.db         # http://127.0.
 ```
 
 - Exit codes: `0` aprovado · `1` falha inesperada (ex.: dados não preparados) · `2` bloqueado.
-  Os três casos ficam registrados no MLflow.
+  Os três casos ficam registrados se o MLflow estiver disponível. Falha no próprio
+  tracking propaga e pode impedir o dashboard; só o Pushgateway tem envio opcional
+  tolerante a indisponibilidade.
 - O tracking grava em `mlflow.db` na raiz e os artefatos ficam em `mlartifacts/`. A UI
   precisa receber a mesma URI explicitamente (não usa automaticamente a URI do código);
   `MLFLOW_TRACKING_URI` pode apontar para outro servidor.

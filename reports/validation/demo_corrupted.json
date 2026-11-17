@@ -15,69 +15,43 @@
       "rule": "C1",
       "column": null,
       "check": "column_in_schema",
-      "cases": 1,
-      "examples": [
-        "CPF"
-      ]
+      "cases": 1
     },
     {
       "rule": "C1",
       "column": "LIMIT_BAL",
       "check": "dtype('int64')",
-      "cases": 5,
-      "examples": [
-        null
-      ]
+      "cases": 5
     },
     {
       "rule": "C2",
       "column": "LIMIT_BAL",
       "check": "not_nullable",
-      "cases": 5,
-      "examples": [
-        null
-      ]
+      "cases": 5
     },
     {
       "rule": "C3",
       "column": "ID",
       "check": "field_uniqueness",
-      "cases": 10,
-      "examples": [
-        11567,
-        11326,
-        25692
-      ]
+      "cases": 10
     },
     {
       "rule": "C4",
       "column": "AGE",
       "check": "in_range(18, 100)",
-      "cases": 5,
-      "examples": [
-        15,
-        130
-      ]
+      "cases": 5
     },
     {
       "rule": "C6",
       "column": "EDUCATION",
       "check": "isin([1, 2, 3, 4])",
-      "cases": 5,
-      "examples": [
-        7
-      ]
+      "cases": 5
     },
     {
       "rule": "C8",
       "column": "PAY_AMT1",
       "check": "greater_than_or_equal_to(0)",
-      "cases": 5,
-      "examples": [
-        -2851,
-        -1,
-        -4074
-      ]
+      "cases": 5
     }
   ],
   "warnings": []

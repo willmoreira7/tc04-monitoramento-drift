@@ -9,22 +9,13 @@
       "rule": "W1",
       "column": "BILL_AMT*",
       "check": "min < -100000",
-      "cases": 3,
-      "examples": [
-        -424504,
-        -196580,
-        -188691
-      ]
+      "cases": 3
     },
     {
       "rule": "W3",
       "column": "PAY_0",
       "check": "share(PAY_0 >= 2) > 1.5x reference",
-      "cases": 678,
-      "examples": [
-        0.2825,
-        0.1057
-      ]
+      "cases": 678
     }
   ]
 }

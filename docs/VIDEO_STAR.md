@@ -1,7 +1,7 @@
 # 🎥 Roteiro do Vídeo STAR
 
 > Duração máxima: **5 minutos** (critério de 15%). Cronometrar o ensaio antes de gravar.
-> 🟡 Esqueleto — números entram depois das Etapas 2 e 3.
+> Roteiro com números dos relatórios versionados. Gravação e ensaio ainda pendentes.
 
 | Bloco | Tempo | Conteúdo exigido pelo enunciado |
 |-------|-------|--------------------------------|
@@ -30,15 +30,18 @@ distribuição com teste estatístico, e documentar o tratamento de dados pessoa
 - Contrato Pandera: mostrar o lote corrompido sendo **bloqueado** (quarentena, exit code)
 - Simulação: os três mecanismos (perfil, inflação nominal, concept drift) e o lote de controle
 - Evidently com PSI e KS: abrir o relatório de um lote com drift
-- MLflow e dashboard: a série dos lotes M01…M06
+- MLflow e dashboard: comparar os lotes simulados M01…M06 e mostrar `lineage/lineage.json`
 - Governança: atributos excluídos, base legal (art. 7º, X), direito de revisão (art. 20)
 
 ## R — Result (~1 min 30 s)
 
-- 🟡 Features com drift detectado e PSI de cada uma
-- 🟡 M01 sem alarme falso
-- 🟡 M05: painel de features verde, AUC caindo — a degradação silenciosa capturada
-- 🟡 Resultado da análise causal: qual drift realmente degradou o modelo
+- M04: PSI de `LIMIT_BAL` 0,227 e de `PAY_0` 0,213; drift não implica piora (AUC 0,7930)
+- M01: nenhum alerta nesta execução; não prova taxa zero de falso positivo
+- M05: features estáveis, AUC 0,6821 contra referência 0,7495; alerta crítico com rótulos
+- M06: AUC cai 0,0644 contra M04, mas só 0,021 contra a referência; composição mascara
+  concept drift no baseline agregado. O monitor não resolve essa limitação
+- Governança: retenção e revisão humana são planos; não há expurgo automático,
+  explicação individual ou monitoramento de equidade por lote implementados
 - Lição: drift detectado não é sinônimo de retreinar
 - Lição de governança: o Home Credit, sugerido pelo enunciado, foi descartado porque os
   termos limitam o uso aos fins da competição e proíbem manipular os dados — "público" não
@@ -56,4 +59,4 @@ distribuição com teste estatístico, e documentar o tratamento de dados pessoa
 
 ---
 
-**Última atualização:** 2026-11-07
+**Última atualização:** 2026-11-17

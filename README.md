@@ -80,9 +80,10 @@ entregável é a camada de **sustentação** em torno dele:
 ```
 
 **Princípio:** o pool de produção sai do **mesmo** dataset da referência, antes de
-qualquer perturbação. Por isso o lote de controle (M01) **não deve** acusar drift — se
-acusar, o detector está calibrado errado. Tudo o que for detectado nos lotes seguintes é
-atribuível à simulação.
+qualquer perturbação. Nesta execução, o controle M01 não gera alerta. Um controle sem
+perturbação também pode acusar diferença por variabilidade amostral: um único lote não
+estima a taxa de falso positivo. A seed compartilhada reduz o ruído nos contrastes da
+simulação, mas não demonstra robustez em novas amostras.
 
 > 📄 Decisões, alternativas descartadas e ADRs em **[docs/ARQUITETURA.md](docs/ARQUITETURA.md)**.
 
@@ -451,7 +452,7 @@ uv run python scripts/run_monitoring_demo.py --demo corrupted   # exit 2
 | **1** | Validação de Dados e Bibliotecas de Qualidade | Contrato Pandera + lote ruim bloqueado + modelo baseline | ✅ Concluída |
 | **2** | Data Drift | Lotes simulados + relatórios Evidently (PSI/KS) + ablação causal | ✅ Concluída |
 | **3** | Monitoramento de Pipelines e Infraestrutura | Logs centralizados + MLflow + dashboard HTML | ✅ Concluída; MLflow externo opcional |
-| **4** | Privacy by Design e by Default | Governança LGPD + análise causal + vídeo STAR | 🟡 Em andamento: falta o vídeo |
+| **4** | Privacy by Design e by Default | Governança LGPD + análise causal + vídeo STAR | 🟡 Falta vídeo; confirmação externa de rotação de credenciais pendente |
 
 > 📄 Tarefas, critérios de aceite e conformidade item a item com o enunciado em
 > **[docs/ROADMAP.md](docs/ROADMAP.md)**.
@@ -544,9 +545,15 @@ o **princípio da não discriminação** (art. 6º, IX) justifica tirá-los do m
 unicamente com base em tratamento automatizado, incluindo a definição do perfil de
 crédito. Consequências para este projeto:
 
-- O score é **apoio à decisão**; recusas ficam sujeitas a revisão humana
-- O Model Card documenta os critérios de forma compreensível (art. 20, §1º)
-- Cada predição é rastreável à versão do modelo e ao lote que a gerou (logs + MLflow)
+- **Uso pretendido:** apoio à decisão. O projeto não concede nem recusa crédito real;
+  não implementa atendimento ao titular ou um fluxo de revisão humana.
+- O Model Card descreve modelo, features, limiar e limitações. **Não há explicação
+  individual de decisões implementada**; isso é requisito antes de um uso real.
+- Os lotes M01…M06 registram no MLflow o SHA256 do artefato carregado, o limiar e um
+  snapshot de metadados/configuração em `lineage/lineage.json`. A rastreabilidade é por
+  **execução de lote**, não um registro persistido de cada predição individual.
+- O art. 20 assegura o direito de solicitar revisão e informações sobre critérios;
+  revisão humana é uma salvaguarda proposta, não uma funcionalidade entregue.
 
 ### 4. Privacy by Design e by Default no pipeline
 
@@ -557,23 +564,44 @@ crédito. Consequências para este projeto:
 | Qualidade dos dados | O contrato de dados **é** a implementação deste princípio |
 | Segurança | Dados brutos fora do Git (`.gitignore`); relatórios versionados não contêm linhas individuais |
 | Transparência | Model Card público; critérios de decisão documentados |
-| Não discriminação | Atributos sensíveis fora das features + métricas de viés por grupo |
-| Responsabilização | Logs estruturados e execuções no MLflow formam a trilha de auditoria (art. 37) |
+| Não discriminação | Atributos pessoais de auditoria fora das features + métricas por grupo; a remoção não garante equidade |
+| Responsabilização | Logs e execuções no MLflow dão evidência técnica por lote; não substituem um registro completo de operações de tratamento (art. 37) |
 
-> ⚠️ **Relatórios versionados não podem vazar dados pessoais.** Os HTML do Evidently
-> trazem distribuições agregadas por feature; o pipeline **não** versiona amostras de
-> linhas. Isso é verificado antes de cada commit em `reports/`.
+**Limite de segurança:** `.gitignore` evita versionamento acidental, mas não implementa
+controle de acesso, criptografia em repouso ou segregação de funções. Esses controles,
+backups e a gestão de direitos dos titulares precisam ser definidos pelo controlador
+antes de tratar dados reais. A autenticação do laboratório é uma demonstração opcional,
+não comprovação de conformidade LGPD da solução.
+
+> ⚠️ **Limites de privacidade dos artefatos.** Os JSON de validação exportam apenas
+> regra, coluna, check e contagem: sem IDs ou exemplos de valores individuais (protegido
+> por testes). O lote bruto bloqueado fica apenas na quarentena local, fora do Git.
+> HTML e notebooks mostram distribuições/estatísticas; não são uma garantia formal de
+> anonimização. Logs de erro podem conter caminhos e detalhes operacionais, exigindo
+> revisão de acesso e conteúdo antes de usar dados reais. Versões antigas dos JSON
+> incluíam exemplos do dataset público; a correção atual não apaga o histórico Git.
 
 ### 5. Plano de retenção
 
-| Dado | Retenção | Fundamento | Destino ao fim |
-|------|----------|-----------|----------------|
-| Dados brutos de proponentes | Enquanto durar a relação + prazo legal | Art. 15 e 16 | Eliminação |
-| Histórico de adimplemento | Até 15 anos | Lei 12.414/2011, art. 14 | Eliminação |
-| Informação negativa (inadimplência) | Até 5 anos | CDC, art. 43, §1º | Eliminação |
-| Dataset de referência do modelo | Vida útil do modelo + auditoria | Art. 16, II (obrigação regulatória) | Anonimização |
-| Lotes em quarentena | 30 dias 🟡 *proposta* | Investigação da falha | Eliminação |
-| Logs e métricas de monitoramento | Sem dado pessoal; retenção livre | Agregados, não identificam titular | — |
+**Plano, não automação:** não há expurgo agendado, gestão de backups ou bloqueio por prazo
+implementados. A política proposta para o exercício prevê revisão manual mensal dos
+arquivos locais e do MLflow pelos mantenedores; a execução dessa revisão não é auditada
+pelo código. Para uma operação real, controlador/encarregado devem aprovar bases,
+prazos e responsáveis antes da ingestão; a hipótese de legítimo interesse exige avaliação
+de balanceamento, não realizada neste exercício.
+
+| Dado | Prazo/critério proposto | Responsável e destino |
+|------|------------------------|-----------------------|
+| Dados brutos de proponentes (cenário real) | Até cumprir a finalidade; eventual conservação exige obrigação específica documentada (art. 16, I), não um prazo genérico | Controlador + jurídico definem prazo por produto e eliminam cópias/backups segundo a política aprovada |
+| Histórico de adimplemento (cenário real) | Limite de até 15 anos da Lei 12.414/2011, art. 14; não é retenção mínima universal | Jurídico valida aplicabilidade ao tratamento; controlador elimina ao fim do prazo aplicável |
+| Informação negativa (cenário real) | Limite de 5 anos do CDC, art. 43, §1º, quando aplicável | Controlador + jurídico validam marco inicial e eliminação |
+| Dados locais de referência/produção e modelos deste exercício | Durante a avaliação; revisão em até 90 dias após seu encerramento | Mantenedores eliminam arquivos locais e runs/artefatos do MLflow; evidência pública agregada permanece versionada |
+| Lotes em quarentena | Até 30 dias da execução, salvo investigação justificada com nova data de revisão | Mantenedores eliminam o diretório do lote e eventuais cópias restritas |
+| Logs e métricas locais | Revisão após 90 dias da execução; sem retenção irrestrita presumida | Mantenedores revisam conteúdo, eliminam logs/runs/artefatos; retenção adicional precisa de justificativa |
+
+Em incidente com dado pessoal real: suspender publicação, restringir acesso e acionar
+controlador/encarregado para avaliar contenção e comunicação legal. Não há workflow de
+incidente nem canal de exercício de direitos implementados no repositório.
 
 ### 6. Mitigação de vieses
 
@@ -614,9 +642,12 @@ A razão entre bons pagadores é a leitura principal. Ela compara a aprovação 
 **3. Mitigação:**
 
 - Atributos pessoais fora das features.
-- Auditoria por grupo reexecutada a cada treino.
-- Revisão humana das recusas (art. 20).
-- 🟡 Razões por grupo acompanhadas por lote no monitoramento (Etapa 3).
+- Auditoria por grupo disponível em `scripts/audit_model.py`, executada após o treino
+  no fluxo documentado e no CI; não é disparada automaticamente por `train_model.py`.
+- Revisão humana das recusas: salvaguarda proposta para uso real, sem workflow implementado.
+- Monitoramento de equidade por lote **não implementado**; a auditoria publicada é no teste.
+- A regra dos 4/5 é triagem descritiva, não certificação de não discriminação; não há
+  intervalos de confiança nem avaliação interseccional.
 - **Descartado:** limiar diferente por grupo, porque exigiria usar o atributo protegido na
   própria decisão.
 

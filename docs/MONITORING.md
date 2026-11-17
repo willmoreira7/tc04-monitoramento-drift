@@ -184,6 +184,14 @@ uv run python scripts/run_monitoring_demo.py --demo valid
 - Login `admin`; a senha acima é a do secret `mlflow-admin` do cluster, publicada de
   propósito (laboratório acadêmico) — a mesma tabela está no
   [README](../README.md#-ambiente-publicado-opcional).
+- **Publicação automática:** o workflow
+  [`publish-monitoring.yml`](../.github/workflows/publish-monitoring.yml) roda os lotes com
+  o dataset real e os registra no MLflow e no Pushgateway a cada merge na `main` (ou por
+  disparo manual em *Actions → Publicar monitoramento → Run workflow*). Usa os secrets
+  `MLFLOW_TRACKING_USERNAME` e `MLFLOW_TRACKING_PASSWORD` do repositório. É separado do
+  CI de propósito: se o ambiente estiver fora do ar ou os secrets não existirem, a
+  publicação é pulada com um aviso e nenhum PR fica bloqueado. Os lotes M01…M06 entram
+  nele com a Etapa 2.
 - Instalação versionada em
   [`monitoring/helm/mlflow-values.yaml`](../monitoring/helm/mlflow-values.yaml): SQLite e
   artefatos num volume de 10 GiB, uma réplica, login básico do próprio MLflow, mesmo ALB

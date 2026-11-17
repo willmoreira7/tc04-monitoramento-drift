@@ -146,6 +146,7 @@ tc04-monitoramento-drift/
 │   └── pipeline/               # ✅ Preparo, validação, treino e lote monitorado · ⬜ demais estágios
 ├── tests/                      # ✅ pytest, sem dependência de rede
 └── .github/workflows/          # ✅ CI: lint → testes (contrato + monitoramento) · dataset real · commitlint
+                                #    + publicação opcional no ambiente compartilhado
 ```
 
 **Legenda:** ✅ existe · ⬜ a construir na etapa indicada
@@ -370,6 +371,9 @@ TC04_PUSHGATEWAY_URL=https://pushgateway.pocsarcotech.com uv run python scripts/
   [`monitoring/grafana/tc04-batch-monitoring.json`](monitoring/grafana/tc04-batch-monitoring.json).
 - Para registrar os lotes no MLflow compartilhado em vez do `mlflow.db` local, ver
   [docs/MONITORING.md](docs/MONITORING.md#-mlflow-compartilhado-opcional).
+- A cada merge na `main`, o workflow
+  [`publish-monitoring.yml`](.github/workflows/publish-monitoring.yml) publica os lotes do
+  dataset real nesse ambiente. É separado do CI: ambiente fora do ar não bloqueia PR.
 
 > ⚠️ Credenciais publicadas intencionalmente: ambiente de laboratório acadêmico
 > (pós-graduação), como no TC03. É a única exceção à regra de não versionar credenciais
